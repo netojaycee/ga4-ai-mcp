@@ -61,9 +61,9 @@ Kind: `HUMAN` (needs owner) · `CODE` · `DOC` · `TEST`
 | ID | Task | Kind | Deps | Files | Status | Owner | Claimed | Evidence | Notes |
 |---|---|---|---|---|---|---|---|---|---|
 | 3.1 | MCP endpoint `/mcp` (Streamable HTTP, stateless) with a stub auth that resolves a dev user | CODE | 1.1 | `src/app/api/mcp/`, `src/server/mcp/` | TODO | | | | Verify SDK API in installed docs |
-| 3.2 | Tool wrapper: auth → entitlement → rate/quota → Google token → call → error map → usage log | CODE | 3.1, 2.4 | `src/server/mcp/wrapper.ts` | TODO | | | | |
+| 3.2 | Tool wrapper: auth → entitlement → rate/quota → Google token → call → error map → usage log | CODE | 3.1, 2.4 | `src/server/mcp/wrapper.ts` | DONE | agent-B |2026-10-05 23:55 UTC | `server/mcp/wrapper.ts`, `tools/account.ts`; `tests/mcp/wrapper.test.ts` (8 tests) | |
 | 3.3 | Register all tools from ARCHITECTURE §6 with precise descriptions and schemas | CODE | 3.2 | `src/server/mcp/tools/` | TODO | | | | |
-| 3.4 | `plans/entitlements.ts` + Postgres rate counters and daily quotas | CODE | 1.3, 1.4 | `src/server/plans/`, `src/server/security/ratelimit.ts` | TODO | | | | |
+| 3.4 | `plans/entitlements.ts` + Postgres rate counters and daily quotas | CODE | 1.3, 1.4 | `src/server/plans/`, `src/server/security/ratelimit.ts` | DONE | agent-B |2026-10-05 23:55 UTC | `tests/plans/{entitlements,ratelimit}.test.ts`; full suite 46 tests, lint/typecheck/build pass | |
 | 3.5 | Decide and implement `search`/`fetch` shims if ChatGPT requires them | CODE | 3.3 | `src/server/mcp/tools/` | TODO | | | | Check OpenAI docs first |
 | 3.6 | Test with MCP Inspector against local server | TEST | 3.3 | `docs/clients.md` | TODO | | | | |
 
@@ -146,6 +146,10 @@ Record result per client: connected? OAuth ok? tools listed? sample call ok? qui
 _None yet._
 
 ## Log (newest first)
+
+- agent-B: 3.1/3.2/3.4 DONE. Route is `src/app/mcp/route.ts` (not api/mcp); swap auth by editing `authenticateMcp` in `src/server/mcp/auth.ts`; add tools in `src/server/mcp/tools/index.ts` via `defineTool`. Decision: trial with null `trialEndsAt` is open-ended; daily and per-minute overages both return `rate_limited`. `npm run typecheck` needs a prior `next build`/typegen for `LayoutProps`.
+
+- 2026-10-05 23:55 UTC: agent-B claimed 3.1, 3.2, 3.4 (MCP endpoint, wrapper, entitlements, rate limiting).
 
 - 2026-10-06: Phase 1 done (1.2 to 1.6) on branch `phase-1-foundations`. New deps: zod 4, drizzle-orm 0.45, pg 8, vitest 5, drizzle-kit, tsx; `@types/node` bumped to ^24 (vitest 5 needs it). Migration applied to the shared Neon DB. Unpooled URL var is `DATABASE_URL_UNPOOLED`.
 - 2026-10-06: Tasks 0.1, 0.6, 0.9 done. `ADMIN_EMAILS=netojaycee@gmail.com` set locally and in Vercel prod. GitHub repo `netojaycee/ga4-ai-mcp` created by owner, pushed, and connected to Vercel project (`vercel git connect`) so pushes to `main` deploy to production. Phase 0 complete.
