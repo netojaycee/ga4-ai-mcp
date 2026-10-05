@@ -1,0 +1,17 @@
+node_modules
+.next
+.env
+.env.*
+!.env.example
+.vercel
+*.tsbuildinfo
+.DS_Store
+note.txt
+.env*
+
+# local / vendor
+.agents
+skills-lock.json
+.claude/settings.local.json
+.claude/skills
+next-env.d.ts
