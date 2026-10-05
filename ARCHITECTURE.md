@@ -53,8 +53,8 @@ Plus a small **admin dashboard** so the owner can manage users, plans and trials
 | Framework | Next.js (App Router) | One app hosts MCP, OAuth, admin, landing |
 | MCP | Official `@modelcontextprotocol/sdk` (Streamable HTTP, stateless). `mcp-handler` from Vercel may be used as a thin adapter | Verify current API against installed package docs; do not rely on memory |
 | DB | Postgres on **Neon** (Vercel Marketplace) | Free tier OK for MVP |
-| ORM | Drizzle | Migrations in `drizzle/` |
-| Validation | Zod | All tool inputs, env, external responses |
+| ORM | Drizzle (`node-postgres` / `pg`) | Migrations in `drizzle/` |
+| Validation | Zod 4 | All tool inputs, env, external responses |
 | Google | `googleapis` / `@google-analytics/data` / `@google-analytics/admin` | Use the user's refresh token |
 | Crypto | Node `crypto` AES-256-GCM, versioned keys | Tokens at rest |
 | Email | Resend | Sender on `mail.johnedeh.com` (already verified) |
@@ -154,7 +154,8 @@ Follow the **MCP authorization spec** and verify against the current spec revisi
 
 ```
 PUBLIC_BASE_URL=            # https://ga.johnedeh.com
-DATABASE_URL=               # Neon
+DATABASE_URL=               # Neon (pooled)
+DATABASE_URL_UNPOOLED=      # Neon direct, used by migrations
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 TOKEN_ENC_KEYS=             # JSON {"1":"<base64 32 bytes>"}; current version in TOKEN_ENC_CURRENT

@@ -40,11 +40,11 @@ Kind: `HUMAN` (needs owner) · `CODE` · `DOC` · `TEST`
 | ID | Task | Kind | Deps | Files | Status | Owner | Claimed | Evidence | Notes |
 |---|---|---|---|---|---|---|---|---|---|
 | 1.1 | Scaffold Next.js (App Router, TS strict, Tailwind, shadcn) **in this folder**; verify current versions | CODE | n/a | root | DONE | claude | 2026-10-06 | `tsc --noEmit` OK; `npm run build` OK | Next 16.3.8, React 19.2.8, Tailwind 4, App Router, src/. shadcn deferred to Phase 5. Package name `ga-mcp` |
-| 1.2 | `src/config/env.ts` (Zod env validation), `.env.example` | CODE | 1.1 | `src/config/`, `.env.example` | TODO | | | | |
-| 1.3 | `src/config/brand.ts` and `src/config/plans.ts` (single source of brand and limits) | CODE | 1.1 | `src/config/` | TODO | | | | |
-| 1.4 | Drizzle setup + schema from ARCHITECTURE §5 + first migration | CODE | 1.2 | `src/server/db/`, `drizzle/` | TODO | | | | |
-| 1.5 | `security/crypto.ts` (AES-256-GCM, key versions), `hash.ts`, with unit tests | CODE+TEST | 1.1 | `src/server/security/` | TODO | | | | |
-| 1.6 | Vitest + lint + typecheck scripts; fill commands in CLAUDE.md | CODE | 1.1 | `package.json`, `CLAUDE.md` | TODO | | | | |
+| 1.2 | `src/config/env.ts` (Zod env validation), `.env.example` | CODE | 1.1 | `src/config/`, `.env.example` | DONE | claude | 2026-10-06 | `tests/config/env.test.ts` (4 tests); build passes with no env present | Lazy `env()`; errors list names, never values |
+| 1.3 | `src/config/brand.ts` and `src/config/plans.ts` (single source of brand and limits) | CODE | 1.1 | `src/config/` | DONE | claude | 2026-10-06 | `src/config/brand.ts`, `plans.ts` typecheck | Plan limits are data; new users default to `trial` |
+| 1.4 | Drizzle setup + schema from ARCHITECTURE §5 + first migration | CODE | 1.2 | `src/server/db/`, `drizzle/` | DONE | claude | 2026-10-06 | Migration `drizzle/0000_*.sql` applied; 9 tables verified in Neon `public` | Neon also has an unused `neon_auth` schema from the integration; ignore it |
+| 1.5 | `security/crypto.ts` (AES-256-GCM, key versions), `hash.ts`, with unit tests | CODE+TEST | 1.1 | `src/server/security/` | DONE | claude | 2026-10-06 | `tests/security/{crypto,hash}.test.ts` (11 tests) pass | AES-256-GCM, version bound as AAD; includes PKCE S256 helper (RFC 7636 vector) |
+| 1.6 | Vitest + lint + typecheck scripts; fill commands in CLAUDE.md | CODE | 1.1 | `package.json`, `CLAUDE.md` | DONE | claude | 2026-10-06 | lint, typecheck, test (15), build all pass | Commands recorded in CLAUDE.md |
 
 ## Phase 2: Google data layer
 
@@ -147,6 +147,7 @@ _None yet._
 
 ## Log (newest first)
 
+- 2026-10-06: Phase 1 done (1.2 to 1.6) on branch `phase-1-foundations`. New deps: zod 4, drizzle-orm 0.45, pg 8, vitest 5, drizzle-kit, tsx; `@types/node` bumped to ^24 (vitest 5 needs it). Migration applied to the shared Neon DB. Unpooled URL var is `DATABASE_URL_UNPOOLED`.
 - 2026-10-06: Tasks 0.1, 0.6, 0.9 done. `ADMIN_EMAILS=netojaycee@gmail.com` set locally and in Vercel prod. GitHub repo `netojaycee/ga4-ai-mcp` created by owner, pushed, and connected to Vercel project (`vercel git connect`) so pushes to `main` deploy to production. Phase 0 complete.
 - 2026-10-06: Tasks 0.7, 0.8, 1.1 done. Placeholder deployed to production (first and only deploy so far). Vercel Neon integration auto-installed vendor skills in `.agents/skills/` and `skills-lock.json`; guard added in CLAUDE.md. Task 0.6 done. Pending owner items: 0.9 (Resend: browser is not logged in; owner must log in and create the API key), `ADMIN_EMAILS` value, and removing `note.txt`.
 - 2026-10-06: Tasks 0.3, 0.4, 0.5 done via Chrome (owner logged in). Owner approved accepting Google API Services User Data Policy. Note: Google console screenshot briefly displayed the client secret during creation; owner copied it to `.env.local`. Consider rotating the secret before any public launch.

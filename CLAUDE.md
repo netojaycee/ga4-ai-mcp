@@ -43,12 +43,13 @@ If the code and ARCHITECTURE.md disagree, fix one of them in the same change and
 - Add or update a test for every security-relevant behaviour (PKCE, redirect matching, token reuse, audience, entitlements).
 
 ## Commands
-_Fill in once Phase 1 scaffolds the project (task 1.6):_
-- dev: `TBD`
-- test: `TBD`
-- typecheck / lint: `TBD`
-- db migrate: `TBD`
-- MCP Inspector: `TBD`
+- dev: `npm run dev` (http://localhost:3000)
+- test: `npm test` (Vitest, `tests/**`); watch: `npm run test:watch`
+- typecheck: `npm run typecheck`; lint: `npm run lint`; build: `npm run build`
+- db: `npm run db:generate` (after editing `src/server/db/schema.ts`), `npm run db:migrate` (applies to the Neon DB in `.env.local`)
+- Before any commit: lint + typecheck + test + build must pass.
+- Git: work on a branch; pushing `main` deploys to production (Vercel Git integration), pushing a branch makes a preview.
+- MCP Inspector: `TBD` (task 3.6)
 
 ## Browser automation (Claude in Chrome)
 Allowed for dashboard setup (Google Cloud, Cloudflare, Vercel, Neon, Resend) **only when the owner says go** and is logged in. Never enter passwords, 2FA codes or payment details; ask the owner to do those. Record outcomes (project IDs, URLs, not secrets) in STATUS.md and the credentials registry.
