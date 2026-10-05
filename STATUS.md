@@ -24,7 +24,7 @@ Kind: `HUMAN` (needs owner) · `CODE` · `DOC` · `TEST`
 
 | ID | Task | Kind | Deps | Files | Status | Owner | Claimed | Evidence | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| 0.1 | `git init`, `.gitignore` (node, .env*, .next), first commit of the three docs | CODE | n/a | `.gitignore` | TODO | | | | Commit only when owner asks |
+| 0.1 | `git init`, `.gitignore` (node, .env*, .next), first commit of the three docs | CODE | n/a | `.gitignore` | DONE | claude | 2026-10-06 | Commit `429d24e` pushed to `origin/main` (`netojaycee/ga4-ai-mcp`) | Vendor skills, `.claude/skills`, env files, `.vercel`, `note.txt` are gitignored; secret-pattern scan clean |
 | 0.2 | Pick subdomain on `johnedeh.com` (e.g. `ga.`) and record in ARCHITECTURE §4 | HUMAN | n/a | `ARCHITECTURE.md` | DONE | owner+claude | 2026-10-05 | `insights.johnedeh.com` | Recorded in ARCHITECTURE §4 |
 | 0.3 | Create Google Cloud project (personal account for PoC), enable Analytics Data API, Analytics Admin API, Search Console API | HUMAN | n/a | `docs/setup-google.md` | DONE | claude | 2026-10-06 | Project `insights-mcp-poc`; 3 APIs listed as enabled | Owner `netojaycee@gmail.com` |
 | 0.4 | OAuth consent screen: External, app name, support email, authorized domain `johnedeh.com`, scopes (analytics.readonly, webmasters.readonly, openid email profile); **publish to In production** (no logo) | HUMAN | 0.3 | `docs/setup-google.md` | DONE | claude | 2026-10-06 | Audience page shows "In production"; Data Access saved | App name `Insights Connector (PoC)`. Homepage/privacy/terms URLs point to pages not built yet (task 7.2) |
@@ -32,7 +32,7 @@ Kind: `HUMAN` (needs owner) · `CODE` · `DOC` · `TEST`
 | 0.6 | Verify `johnedeh.com` ownership in Search Console (authorized domain) | HUMAN | 0.2 | `docs/setup-google.md` | DONE | claude | 2026-10-06 | Search Console showed "Ownership auto verified" for Domain property `johnedeh.com` (existing TXT record) | Verified under `netojaycee@gmail.com` |
 | 0.7 | Create Vercel project (link repo/folder), Neon database via Marketplace, set env vars | HUMAN | 0.2 | `docs/setup-hosting.md` | DONE | claude | 2026-10-06 | Vercel project `insights-mcp` (personal team); Neon `insights-mcp-db` provisioned via integration; prod env synced | Prod secrets differ from local. Dev and prod currently share one Neon DB |
 | 0.8 | Cloudflare DNS record for the subdomain → Vercel (DNS-only) | HUMAN | 0.7 | `docs/setup-hosting.md` | DONE | claude | 2026-10-06 | `curl https://insights.johnedeh.com` returns 200 with valid TLS | A record `insights` → 76.76.21.21, DNS only |
-| 0.9 | Confirm Resend domain `mail.johnedeh.com` works; create API key | HUMAN | n/a | `.env.local` | TODO | | | | |
+| 0.9 | Confirm Resend domain `mail.johnedeh.com` works; create API key | HUMAN | n/a | `.env.local` | DONE | owner+claude | 2026-10-06 | Resend Domains page: `mail.johnedeh.com` Verified; `RESEND_API_KEY` set locally and in Vercel prod (sensitive) | `MAIL_FROM=Insights Connector <hello@mail.johnedeh.com>`. No test email sent yet |
 | 0.10 | Create `docs/credentials-registry.md` (names/locations/owners, no secrets) | DOC | n/a | `docs/credentials-registry.md` | TODO | | | | |
 
 ## Phase 1: Scaffold
@@ -147,6 +147,7 @@ _None yet._
 
 ## Log (newest first)
 
+- 2026-10-06: Tasks 0.1, 0.6, 0.9 done. `ADMIN_EMAILS=netojaycee@gmail.com` set locally and in Vercel prod. GitHub repo `netojaycee/ga4-ai-mcp` created by owner, pushed, and connected to Vercel project (`vercel git connect`) so pushes to `main` deploy to production. Phase 0 complete.
 - 2026-10-06: Tasks 0.7, 0.8, 1.1 done. Placeholder deployed to production (first and only deploy so far). Vercel Neon integration auto-installed vendor skills in `.agents/skills/` and `skills-lock.json`; guard added in CLAUDE.md. Task 0.6 done. Pending owner items: 0.9 (Resend: browser is not logged in; owner must log in and create the API key), `ADMIN_EMAILS` value, and removing `note.txt`.
 - 2026-10-06: Tasks 0.3, 0.4, 0.5 done via Chrome (owner logged in). Owner approved accepting Google API Services User Data Policy. Note: Google console screenshot briefly displayed the client secret during creation; owner copied it to `.env.local`. Consider rotating the secret before any public launch.
 - 2026-10-06: Redirect URIs registered: `https://insights.johnedeh.com/api/connect/google/callback` and `http://localhost:3000/api/connect/google/callback`. Scaffold must use exactly this callback path.
