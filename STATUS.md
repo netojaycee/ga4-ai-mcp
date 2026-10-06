@@ -50,11 +50,11 @@ Kind: `HUMAN` (needs owner) · `CODE` · `DOC` · `TEST`
 
 | ID | Task | Kind | Deps | Files | Status | Owner | Claimed | Evidence | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| 2.1 | `google/auth.ts`: build OAuth client from stored refresh token, refresh, handle `invalid_grant` (mark connection `error`) | CODE | 1.4, 1.5 | `src/server/google/auth.ts` | TODO | | | | |
-| 2.2 | `google/ga4.ts`: listProperties, getMetadata, runReport, runRealtimeReport; Zod-typed inputs, row caps | CODE | 2.1 | `src/server/google/ga4.ts` | TODO | | | | |
-| 2.3 | `google/gsc.ts`: listSites, searchAnalytics (paging), inspectUrl, listSitemaps | CODE | 2.1 | `src/server/google/gsc.ts` | TODO | | | | |
-| 2.4 | Normalised error mapping (quota, permission, not found, auth) into LLM-friendly messages | CODE | 2.2, 2.3 | `src/server/google/errors.ts` | TODO | | | | |
-| 2.5 | Unit tests with mocked Google responses | TEST | 2.2, 2.3 | `tests/google/` | TODO | | | | |
+| 2.1 | `google/auth.ts`: build OAuth client from stored refresh token, refresh, handle `invalid_grant` (mark connection `error`) | CODE | 1.4, 1.5 | `src/server/google/auth.ts` | DONE | agent-A |2026-10-05 23:55Z | `tests/google/*` pass (71 tests); lint, typecheck, build pass | Plain fetch, no google-auth-library; deps injectable |
+| 2.2 | `google/ga4.ts`: listProperties, getMetadata, runReport, runRealtimeReport; Zod-typed inputs, row caps | CODE | 2.1 | `src/server/google/ga4.ts` | DONE | agent-A |2026-10-05 23:55Z | `tests/google/*` pass (71 tests); lint, typecheck, build pass | Plain fetch, no google-auth-library; deps injectable |
+| 2.3 | `google/gsc.ts`: listSites, searchAnalytics (paging), inspectUrl, listSitemaps | CODE | 2.1 | `src/server/google/gsc.ts` | DONE | agent-A |2026-10-05 23:55Z | `tests/google/*` pass (71 tests); lint, typecheck, build pass | Plain fetch, no google-auth-library; deps injectable |
+| 2.4 | Normalised error mapping (quota, permission, not found, auth) into LLM-friendly messages | CODE | 2.2, 2.3 | `src/server/google/errors.ts` | DONE | agent-A |2026-10-05 23:55Z | `tests/google/*` pass (71 tests); lint, typecheck, build pass | Plain fetch, no google-auth-library; deps injectable |
+| 2.5 | Unit tests with mocked Google responses | TEST | 2.2, 2.3 | `tests/google/` | DONE | agent-A |2026-10-05 23:55Z | `tests/google/*` pass (71 tests); lint, typecheck, build pass | Plain fetch, no google-auth-library; deps injectable |
 
 ## Phase 3: MCP server
 
@@ -140,12 +140,15 @@ Record result per client: connected? OAuth ok? tools listed? sample call ok? qui
 | 2026-10-05 | Admin dashboard in same Next.js app; manual plan management | Owner grants internal team free access |
 
 | 2026-10-05 | PoC base URL `https://insights.johnedeh.com`; Google Cloud project owned by `netojaycee@gmail.com` | Owner choice |
+| 2026-10-06 | Google data layer uses plain `fetch` (token refresh + REST) with Zod-parsed responses; no `google-auth-library`/`googleapis` | Smaller bundle, trivial mocking, no extra deps. Access tokens cached in process memory only (until expiry minus 60s) |
 
 ## Blockers
 
 _None yet._
 
 ## Log (newest first)
+
+- 2026-10-06: agent-A finished 2.1 to 2.5 (src/server/google/*, tests/google/*). Not wired into MCP yet (Phase 3).
 
 - 2026-10-06: Phase 1 done (1.2 to 1.6) on branch `phase-1-foundations`. New deps: zod 4, drizzle-orm 0.45, pg 8, vitest 5, drizzle-kit, tsx; `@types/node` bumped to ^24 (vitest 5 needs it). Migration applied to the shared Neon DB. Unpooled URL var is `DATABASE_URL_UNPOOLED`.
 - 2026-10-06: Tasks 0.1, 0.6, 0.9 done. `ADMIN_EMAILS=netojaycee@gmail.com` set locally and in Vercel prod. GitHub repo `netojaycee/ga4-ai-mcp` created by owner, pushed, and connected to Vercel project (`vercel git connect`) so pushes to `main` deploy to production. Phase 0 complete.
