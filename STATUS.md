@@ -162,13 +162,15 @@ _None yet._
 - [x] Postgres paths exercised live on Neon: rate limiter (trial 20/min hit and reported), entitlement/user lookup, usage events, Drizzle upserts via real Google sign-in, bearer-token lookup. Still untested live: refresh-token rotation and code exchange (need a real OAuth client, task 6.x).
 - [ ] Task 4.9 remains DOING: MCP-side token-confusion tests (e.g. an access token for another resource is rejected at `/mcp`).
 - [ ] Periodically delete OAuth clients with no tokens and older than N days (each Claude Connect click registers a new client).
-- [ ] Browser-verify every /admin page against real data (SQL such as `percentile_cont`, `to_char`, `like ... escape` and all server actions have only been unit-tested with fakes).
+- [x] Browser-verified on production as the owner: /admin (users, kill switch card), /admin/usage (percentile SQL OK), /admin/audit, /admin/grants, /admin/invites, /admin/users/[id] all render with real data; anonymous visitors are redirected to sign-in; cron route returns 401 without the secret; team-grant create + revoke round trip works.
+- [ ] Still not exercised live: plan/trial edits, suspend/unsuspend, revoke sessions, kill-switch toggle, invite email sending (needs a test address), cron run, grant applied at a real first sign-in with a second Google account.
 - [ ] Confirm Vercel Hobby cron limits (once a day is believed allowed) and that the cron runs; send one test invite to an address the owner controls.
 - [ ] Separate dev and prod databases (Neon branch) before real users.
 - [x] Merged to `main` with owner OK (production deploy).
 
 ## Log (newest first)
 
+- 2026-10-06: Phase 5 deployed to production and browser-verified (see follow-ups). A fake pre-approval `grant-test@example.invalid` was created and removed through the UI to test the write path; audit and usage views show the owner's own test traffic only.
 - 2026-10-06: **Phase 5 integrated** (agents E and F; branch `integration-phase-5`): admin guard (session user + `ADMIN_EMAILS`), users list/detail, revoke/suspend, kill switch (`app_settings`), team grants (`plan_grants`, applied at first sign-in), usage and audit views, invites + Resend mailer, daily trial-notice cron (`vercel.json`, `CRON_SECRET`). Merged cleanly except STATUS.md (duplicated Phase 5 rows reconciled). 290 tests pass; lint, typecheck and build clean. Migration 0002 (2 additive tables) applied to Neon; `CRON_SECRET` set in Vercel production. Fixed `.gitignore` so `.env.example` is tracked (a later `.env*` line had overridden the `!.env.example` exception).
 - 2026-10-06: agent-E finished 5.1, 5.2, 5.3, 5.6. Owner must apply migration `drizzle/0002_*` (app_settings, plan_grants) before the kill switch or grants work; wrapper fails open until then. Added no-store/noindex headers in `next.config.ts`; `disconnectUser` in connect/account.ts gained optional actor and returns its result.
 - 2026-10-06: agent-E claimed 5.1, 5.2, 5.3, 5.6 (admin core: guard, users, kill switch, team grants).
