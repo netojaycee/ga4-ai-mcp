@@ -88,15 +88,9 @@ Kind: `HUMAN` (needs owner) · `CODE` · `DOC` · `TEST`
 | 5.1 | Admin auth (Google sign-in + `ADMIN_EMAILS`, separate session, CSRF) | CODE | 4.4 | `src/app/admin/`, `src/server/security/` | DONE | agent-E | 2026-10-06 | `src/server/admin/guard.ts` + `src/app/admin/layout.tsx`; `tests/admin/guard.test.ts` (logged out, non-admin 404, case-insensitive); lint/typecheck/test(253)/build pass | |
 | 5.2 | Users table: search, filter by plan, edit plan / trial end / notes | CODE | 5.1 | `src/app/admin/users/` | DONE | agent-E | 2026-10-06 | `/admin`, `/admin/users/[id]`; `tests/admin/users.test.ts` (validation, audit rows, list param/LIKE building) | |
 | 5.3 | Revoke a user's connection and sessions; suspend user; global kill switch | CODE | 5.2 | `src/app/admin/` | DONE | agent-E | 2026-10-06 | Revoke/disconnect/suspend on user page, kill switch on `/admin`, `app_settings` + migration `0002_*` (not applied); `tests/admin/{users,killswitch}.test.ts` incl. wrapper on/off/fail-open | |
-| 5.4 | Usage view (calls per user/tool, errors) and audit log view | CODE | 5.2 | `src/app/admin/usage/` | TODO | | | | |
-| 5.5 | Invite by email via Resend; trial-ending notice job (Vercel Cron) | CODE | 0.9, 5.2 | `src/server/mail/`, `src/app/api/cron/` | TODO | | | | |
-| 5.6 | Default new users to `trial` with `TRIAL_DAYS`; internal-team bulk grant action | CODE | 5.2 | `src/server/plans/` | DONE | agent-E | 2026-10-06 | `/admin/grants`, `plan_grants` table, grant applied in connect flow; `tests/admin/grants.test.ts` (existing user, first sign-in, invalid, >200, duplicate) | |
-| 5.1 | Admin auth (Google sign-in + `ADMIN_EMAILS`, separate session, CSRF) | CODE | 4.4 | `src/app/admin/`, `src/server/security/` | TODO | | | | |
-| 5.2 | Users table: search, filter by plan, edit plan / trial end / notes | CODE | 5.1 | `src/app/admin/users/` | TODO | | | | |
-| 5.3 | Revoke a user's connection and sessions; suspend user; global kill switch | CODE | 5.2 | `src/app/admin/` | TODO | | | | |
 | 5.4 | Usage view (calls per user/tool, errors) and audit log view | CODE | 5.2 | `src/app/admin/usage/`, `src/app/admin/audit/` | DONE | agent-F | 2026-10-06T01:00Z | `tests/admin/usage-*.test.ts` (window, view mapping, audit filter/pagination/LIKE escaping, meta truncation); lint, typecheck, test (248), build pass | SQL not run against a real DB (none per brief); every page calls `requireAdmin()` first. Top users use the selected window, not a fixed 7 days |
 | 5.5 | Invite by email via Resend; trial-ending notice job (Vercel Cron) | CODE | 0.9, 5.2 | `src/server/mail/`, `src/app/admin/invites/`, `src/app/api/cron/` | DONE | agent-F | 2026-10-06T01:00Z | `tests/mail/*`, `tests/cron/*`, CRON_SECRET env test; lint, typecheck, test (248), build pass | No real email sent. Route `/api/cron/trial-notices`, `vercel.json` daily 09:00 UTC; set `CRON_SECRET` (16+ chars) in Vercel prod or the route returns 503. Idempotency via audit_log `cron.trial_notice_sent` |
-| 5.6 | Default new users to `trial` with `TRIAL_DAYS`; internal-team bulk grant action | CODE | 5.2 | `src/server/plans/` | TODO | | | | |
+| 5.6 | Default new users to `trial` with `TRIAL_DAYS`; internal-team bulk grant action | CODE | 5.2 | `src/server/plans/` | DONE | agent-E | 2026-10-06 | `/admin/grants`, `plan_grants` table, grant applied in connect flow; `tests/admin/grants.test.ts` (existing user, first sign-in, invalid, >200, duplicate) | |
 
 ## Phase 6: Client compatibility matrix
 
@@ -168,11 +162,14 @@ _None yet._
 - [x] Postgres paths exercised live on Neon: rate limiter (trial 20/min hit and reported), entitlement/user lookup, usage events, Drizzle upserts via real Google sign-in, bearer-token lookup. Still untested live: refresh-token rotation and code exchange (need a real OAuth client, task 6.x).
 - [ ] Task 4.9 remains DOING: MCP-side token-confusion tests (e.g. an access token for another resource is rejected at `/mcp`).
 - [ ] Periodically delete OAuth clients with no tokens and older than N days (each Claude Connect click registers a new client).
+- [ ] Browser-verify every /admin page against real data (SQL such as `percentile_cont`, `to_char`, `like ... escape` and all server actions have only been unit-tested with fakes).
+- [ ] Confirm Vercel Hobby cron limits (once a day is believed allowed) and that the cron runs; send one test invite to an address the owner controls.
 - [ ] Separate dev and prod databases (Neon branch) before real users.
 - [x] Merged to `main` with owner OK (production deploy).
 
 ## Log (newest first)
 
+- 2026-10-06: **Phase 5 integrated** (agents E and F; branch `integration-phase-5`): admin guard (session user + `ADMIN_EMAILS`), users list/detail, revoke/suspend, kill switch (`app_settings`), team grants (`plan_grants`, applied at first sign-in), usage and audit views, invites + Resend mailer, daily trial-notice cron (`vercel.json`, `CRON_SECRET`). Merged cleanly except STATUS.md (duplicated Phase 5 rows reconciled). 290 tests pass; lint, typecheck and build clean. Migration 0002 (2 additive tables) applied to Neon; `CRON_SECRET` set in Vercel production. Fixed `.gitignore` so `.env.example` is tracked (a later `.env*` line had overridden the `!.env.example` exception).
 - 2026-10-06: agent-E finished 5.1, 5.2, 5.3, 5.6. Owner must apply migration `drizzle/0002_*` (app_settings, plan_grants) before the kill switch or grants work; wrapper fails open until then. Added no-store/noindex headers in `next.config.ts`; `disconnectUser` in connect/account.ts gained optional actor and returns its result.
 - 2026-10-06: agent-E claimed 5.1, 5.2, 5.3, 5.6 (admin core: guard, users, kill switch, team grants).
 

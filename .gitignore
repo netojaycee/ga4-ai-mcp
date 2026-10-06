@@ -7,7 +7,6 @@ node_modules
 *.tsbuildinfo
 .DS_Store
 note.txt
-.env*
 
 # local / vendor
 .agents
