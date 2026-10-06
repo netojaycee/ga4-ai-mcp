@@ -1,6 +1,6 @@
 import { eq, isNull, and } from "drizzle-orm";
 import { db } from "@/server/db/client";
-import { auditLog, googleConnections, oauthTokens, users } from "@/server/db/schema";
+import { auditLog, googleConnections, oauthTokens, planGrants, users } from "@/server/db/schema";
 import type { Plan } from "@/config/plans";
 
 export interface UpsertUserInput {
@@ -39,6 +39,9 @@ export interface ConnectRepository {
   deleteConnection(userId: string): Promise<void>;
   revokeOAuthTokens(userId: string, now: Date): Promise<number>;
   deleteUser(userId: string): Promise<void>;
+  /** Unapplied pre-approved plan for this (lower-cased) email, set by an admin before first sign-in. */
+  findPendingGrant(email: string): Promise<{ plan: Plan } | null>;
+  markGrantApplied(email: string, now: Date): Promise<void>;
   audit(e: { actor: string; action: string; target?: string; meta?: Record<string, unknown> }): Promise<void>;
 }
 
@@ -114,6 +117,20 @@ export function drizzleConnectRepository(): ConnectRepository {
     },
     async deleteUser(userId) {
       await db().delete(users).where(eq(users.id, userId));
+    },
+    async findPendingGrant(email) {
+      const [g] = await db()
+        .select({ plan: planGrants.plan })
+        .from(planGrants)
+        .where(and(eq(planGrants.email, email), isNull(planGrants.appliedAt)))
+        .limit(1);
+      return g ?? null;
+    },
+    async markGrantApplied(email, now) {
+      await db()
+        .update(planGrants)
+        .set({ appliedAt: now })
+        .where(and(eq(planGrants.email, email), isNull(planGrants.appliedAt)));
     },
     async audit(e) {
       await db().insert(auditLog).values({ actor: e.actor, action: e.action, target: e.target ?? null, meta: e.meta ?? null });

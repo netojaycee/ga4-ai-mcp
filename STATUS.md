@@ -85,12 +85,12 @@ Kind: `HUMAN` (needs owner) · `CODE` · `DOC` · `TEST`
 
 | ID | Task | Kind | Deps | Files | Status | Owner | Claimed | Evidence | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| 5.1 | Admin auth (Google sign-in + `ADMIN_EMAILS`, separate session, CSRF) | CODE | 4.4 | `src/app/admin/`, `src/server/security/` | TODO | | | | |
-| 5.2 | Users table: search, filter by plan, edit plan / trial end / notes | CODE | 5.1 | `src/app/admin/users/` | TODO | | | | |
-| 5.3 | Revoke a user's connection and sessions; suspend user; global kill switch | CODE | 5.2 | `src/app/admin/` | TODO | | | | |
+| 5.1 | Admin auth (Google sign-in + `ADMIN_EMAILS`, separate session, CSRF) | CODE | 4.4 | `src/app/admin/`, `src/server/security/` | DONE | agent-E | 2026-10-06 | `src/server/admin/guard.ts` + `src/app/admin/layout.tsx`; `tests/admin/guard.test.ts` (logged out, non-admin 404, case-insensitive); lint/typecheck/test(253)/build pass | |
+| 5.2 | Users table: search, filter by plan, edit plan / trial end / notes | CODE | 5.1 | `src/app/admin/users/` | DONE | agent-E | 2026-10-06 | `/admin`, `/admin/users/[id]`; `tests/admin/users.test.ts` (validation, audit rows, list param/LIKE building) | |
+| 5.3 | Revoke a user's connection and sessions; suspend user; global kill switch | CODE | 5.2 | `src/app/admin/` | DONE | agent-E | 2026-10-06 | Revoke/disconnect/suspend on user page, kill switch on `/admin`, `app_settings` + migration `0002_*` (not applied); `tests/admin/{users,killswitch}.test.ts` incl. wrapper on/off/fail-open | |
 | 5.4 | Usage view (calls per user/tool, errors) and audit log view | CODE | 5.2 | `src/app/admin/usage/` | TODO | | | | |
 | 5.5 | Invite by email via Resend; trial-ending notice job (Vercel Cron) | CODE | 0.9, 5.2 | `src/server/mail/`, `src/app/api/cron/` | TODO | | | | |
-| 5.6 | Default new users to `trial` with `TRIAL_DAYS`; internal-team bulk grant action | CODE | 5.2 | `src/server/plans/` | TODO | | | | |
+| 5.6 | Default new users to `trial` with `TRIAL_DAYS`; internal-team bulk grant action | CODE | 5.2 | `src/server/plans/` | DONE | agent-E | 2026-10-06 | `/admin/grants`, `plan_grants` table, grant applied in connect flow; `tests/admin/grants.test.ts` (existing user, first sign-in, invalid, >200, duplicate) | |
 
 ## Phase 6: Client compatibility matrix
 
@@ -166,6 +166,9 @@ _None yet._
 - [x] Merged to `main` with owner OK (production deploy).
 
 ## Log (newest first)
+
+- 2026-10-06: agent-E finished 5.1, 5.2, 5.3, 5.6. Owner must apply migration `drizzle/0002_*` (app_settings, plan_grants) before the kill switch or grants work; wrapper fails open until then. Added no-store/noindex headers in `next.config.ts`; `disconnectUser` in connect/account.ts gained optional actor and returns its result.
+- 2026-10-06: agent-E claimed 5.1, 5.2, 5.3, 5.6 (admin core: guard, users, kill switch, team grants).
 
 - 2026-10-06: **Claude end-to-end verified.** Connector added in claude.ai (auto-detected OAuth + DCR), Approve (after the Origin fix) issued 1 used auth code + access (1h) and refresh (30d) tokens bound to our `/mcp`; a real chat made 3 tool calls and answered with live GA4 data. Wrote `docs/clients.md` (Claude verified; others TODO). Claude registers a new OAuth client on every Connect click, so unused client rows accumulate (see follow-ups).
 - 2026-10-06: **Bug found by the first real client (Claude)**: clicking Approve on the consent page failed with "Cross-origin request rejected." Cause: consent page sent `Referrer-Policy: no-referrer`, so browsers send `Origin: null` on the form POST and our Origin check rejected it. Unit tests used fake requests and could not catch browser behaviour. Fix: policy `same-origin`; Origin check also accepts `null` only with `Sec-Fetch-Site: same-origin` (CSRF cookie check unchanged). Regression tests added. Lesson: real-browser/client tests are required for the OAuth flow (task 6.x).

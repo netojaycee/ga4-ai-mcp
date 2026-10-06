@@ -120,14 +120,20 @@ export async function handleCallback(req: Request, d: ConnectDeps): Promise<Resp
   }
 
   const now = new Date(d.now());
-  const trialEndsAt = new Date(now.getTime() + d.trialDays * 86_400_000);
+  const grant = await d.repo.findPendingGrant(identity.email.toLowerCase());
+  const plan = grant?.plan ?? d.defaultPlan ?? DEFAULT_PLAN_FOR_NEW_USERS;
+  const trialEndsAt = plan === "internal" ? null : new Date(now.getTime() + d.trialDays * 86_400_000);
   const user = await d.repo.upsertUser({
     googleSub: identity.sub,
     email: identity.email,
     name: identity.name,
     now,
-    newUser: { plan: d.defaultPlan ?? DEFAULT_PLAN_FOR_NEW_USERS, trialEndsAt },
+    newUser: { plan, trialEndsAt },
   });
+  if (grant && user.created) {
+    await d.repo.markGrantApplied(identity.email.toLowerCase(), now);
+    await d.repo.audit({ actor: "system", action: "admin.grant.applied", target: user.id, meta: { plan: grant.plan } });
+  }
   const enc = d.encrypt(tokens.refreshToken);
   await d.repo.upsertConnection({
     userId: user.id,
