@@ -169,6 +169,22 @@ export const adminSessions = pgTable("admin_sessions", {
   createdAt: createdAt(),
 });
 
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").$type<Record<string, unknown>>().notNull(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
+/** Pre-approved plans for emails that have not signed in yet. Applied at first sign-in. */
+export const planGrants = pgTable("plan_grants", {
+  email: text("email").primaryKey(),
+  plan: text("plan", { enum: PLANS }).notNull(),
+  note: text("note"),
+  createdBy: text("created_by").notNull(),
+  createdAt: createdAt(),
+  appliedAt: ts("applied_at"),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type GoogleConnection = typeof googleConnections.$inferSelect;

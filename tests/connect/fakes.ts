@@ -67,6 +67,15 @@ export class FakeRepo implements ConnectRepository {
     this.connections.delete(userId);
     this.tokens = this.tokens.filter((t) => t.userId !== userId);
   }
+  grants = new Map<string, { plan: string; appliedAt: Date | null }>();
+  async findPendingGrant(email: string) {
+    const g = this.grants.get(email);
+    return g && !g.appliedAt ? { plan: g.plan as AccountView["plan"] } : null;
+  }
+  async markGrantApplied(email: string, now: Date) {
+    const g = this.grants.get(email);
+    if (g) g.appliedAt = now;
+  }
   async audit(e: { actor: string; action: string; target?: string; meta?: Record<string, unknown> }) {
     this.audits.push(e);
   }

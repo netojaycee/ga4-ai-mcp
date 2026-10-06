@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { PlanLimits } from "@/config/plans";
 import type { McpAuthContext } from "@/server/auth/context";
+import { DEFAULT_KILL_MESSAGE, getKillSwitch } from "@/server/admin/settings";
 import { db } from "@/server/db/client";
 import { usageEvents, users, type User } from "@/server/db/schema";
 import { ToolError, isToolError, type ToolErrorCode } from "@/server/errors";
@@ -41,6 +42,8 @@ export interface WrapperDeps {
   rateStore: RateLimitStore;
   logUsage(record: UsageRecord): Promise<void>;
   now(): Date;
+  /** Global kill switch lookup. Optional: absent means "off". */
+  killSwitch?: () => Promise<{ active: boolean; message: string | null }>;
 }
 
 export function defaultWrapperDeps(): WrapperDeps {
@@ -54,7 +57,19 @@ export function defaultWrapperDeps(): WrapperDeps {
       await db().insert(usageEvents).values(r);
     },
     now: () => new Date(),
+    killSwitch: getKillSwitch,
   };
+}
+
+/** Fails open: a broken settings lookup must never take the service down. Logs the error name only. */
+async function killSwitchState(deps: WrapperDeps) {
+  if (!deps.killSwitch) return null;
+  try {
+    return await deps.killSwitch();
+  } catch (e) {
+    console.error(`[mcp] kill switch lookup failed: ${e instanceof Error ? e.name : typeof e}`);
+    return null;
+  }
 }
 
 const errorResult = (message: string): CallToolResult => ({
@@ -80,6 +95,8 @@ export async function runTool(
   let result: CallToolResult;
 
   try {
+    const ks = await killSwitchState(deps);
+    if (ks?.active) throw new ToolError("plan_blocked", ks.message ?? DEFAULT_KILL_MESSAGE);
     const user = await deps.loadUser(ctx.userId);
     if (!user) throw new ToolError("auth_required", "Your account was not found. Please reconnect the connector.");
     userId = user.id;

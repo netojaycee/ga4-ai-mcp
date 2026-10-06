@@ -15,6 +15,13 @@
       "when": 1791245431364,
       "tag": "0001_easy_proteus",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791249397644,
+      "tag": "0002_daffy_marvel_zombies",
+      "breakpoints": true
     }
   ]
 }

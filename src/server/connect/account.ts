@@ -18,7 +18,8 @@ export interface AccountDeps {
 export async function disconnectUser(
   d: Pick<AccountDeps, "google" | "repo" | "decrypt" | "now">,
   userId: string,
-  action: "account.disconnect" | "account.delete",
+  action: "account.disconnect" | "account.delete" | "admin.user.google_disconnected",
+  actor = `user:${userId}`,
 ) {
   let googleRevoked = false;
   try {
@@ -29,7 +30,8 @@ export async function disconnectUser(
   }
   await d.repo.deleteConnection(userId);
   const revokedTokens = await d.repo.revokeOAuthTokens(userId, new Date(d.now()));
-  await d.repo.audit({ actor: `user:${userId}`, action, target: userId, meta: { googleRevoked, revokedTokens } });
+  await d.repo.audit({ actor, action, target: userId, meta: { googleRevoked, revokedTokens } });
+  return { googleRevoked, revokedTokens };
 }
 
 /** Everything in disconnectUser, then deletes the user row (cascades) and clears the session. */
