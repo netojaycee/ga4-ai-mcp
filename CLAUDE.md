@@ -7,8 +7,8 @@ Hosted multi-user MCP server that connects any MCP-capable AI client (ChatGPT, C
 Codename `ga-mcp`; final product name is TBD. Never hard-code a brand name.
 
 ## Read first, every session
-1. `STATUS.md`: pick, claim and update tasks. Follow its protocol exactly.
-2. `ARCHITECTURE.md`: stack, data model, auth flow, security rules, portability rules.
+1. `STATUS.md`: start at **RESUME HERE** (current state and ordered next steps), then pick, claim and update tasks. Follow its protocol exactly.
+2. `ARCHITECTURE.md`: design (sections 1-13) and what was actually built (section 14: it wins on any disagreement). Also `docs/runbook.md` (operations) and `docs/clients.md`.
 
 If the code and ARCHITECTURE.md disagree, fix one of them in the same change and log a Decision in STATUS.md.
 

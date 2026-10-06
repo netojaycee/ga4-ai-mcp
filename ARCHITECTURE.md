@@ -1,5 +1,8 @@
 # ARCHITECTURE
 
+> **Reading guide (2026-10-06):** sections 1-13 are the original design. **Section 14 at the end records what was actually built and every place it differs.** When the two disagree, section 14 is right.
+
+
 Working codename: **`ga-mcp`** (placeholder, product name TBD). All brand-specific values live in one place (`src/config/brand.ts` + env) so renaming is a config change, not a refactor. See [§12 Portability](#12-portability--moving-to-the-real-brand).
 
 ## 1. What we are building
@@ -230,3 +233,39 @@ Keep `docs/credentials-registry.md` (names and locations only, never secret valu
 ## 13. Cost snapshot (PoC)
 
 Domain on existing `johnedeh.com`: $0. Vercel Hobby + Neon free + Resend free + Cloudflare free + Google APIs free + Zoho free tier: **≈ $0/month**. Existing Claude Max / ChatGPT Plus cover client testing. First real spend is likely Vercel Pro or Azure when the whole company uses it.
+
+## 14. As built (2026-10-06)
+
+### Environments
+| | Production | Development |
+|---|---|---|
+| Host | Vercel project `insights-mcp` (team `edeh-jaycees-projects`, Hobby), `https://insights.johnedeh.com` | `next dev` on localhost |
+| Database | Neon project `insights-mcp-db`, branch `main` | Neon branch `dev` (schema only, never auto-deletes), URLs in `.env.development.local` |
+| Google OAuth client | `insights-mcp-web` in Cloud project `insights-mcp-poc` (External, In production, unverified) with both redirect URIs | same client |
+| Secrets | Vercel env (separate `TOKEN_ENC_KEYS`, `SESSION_SECRET` from dev) | `.env.local` + `.env.development.local` (gitignored) |
+
+### Where the build differs from sections 1-13
+- **Google APIs** are called with plain `fetch` + Zod (no `googleapis`, no `google-auth-library`); the Zod input schemas double as the MCP tool schemas. Zod is v4; Drizzle uses `node-postgres`.
+- **Admin auth** reuses the first-party session cookie (`ga_session`) plus `ADMIN_EMAILS`; there is no separate admin login and the `admin_sessions` table is unused. Admin UI is plain Tailwind (no shadcn).
+- **OAuth**: follows MCP authorization revision 2026-07-28 (RFC 9728/8414/7591/7636/8707/7009/9207). Dynamic Client Registration only (no Client ID Metadata Documents). Scope string `analytics:read`. Access token 1 h, refresh token 30 d with rotation and reuse detection, all opaque and stored as SHA-256 hashes, bound to the `/mcp` resource URL. Redirect URIs: https, loopback http, or the single exact allowlisted native URI `cursor://anysphere.cursor-mcp/oauth/callback`. Consent page warns that client names are self-declared. Public clients only, PKCE S256 mandatory.
+- **MCP**: route `src/app/mcp/route.ts`, stateless Streamable HTTP, CORS `*` (bearer tokens only). Tools (all read-only, all through `runTool`): `account_status`, `ga4_list_properties`, `ga4_get_metadata`, `ga4_run_report`, `ga4_run_realtime_report`, `gsc_list_sites`, `gsc_search_analytics`, `gsc_inspect_url`, `gsc_list_sitemaps`. Tool text is prefixed with an untrusted-data note. No `search`/`fetch` shims (only needed for ChatGPT deep research). Dev-header auth stub needs `ALLOW_DEV_AUTH=1` and never works in production.
+- **Plans and limits** (`src/config/plans.ts`): internal 5000/day, 60/min; trial 200/day, 20/min (14 days); paid 2000/day, 40/min; suspended 0. Row caps per call by plan. New users default to `trial`; an admin pre-approval (`plan_grants`) applied at first sign-in can give `internal`.
+- **Sessions**: cookie `ga_session` is HMAC-signed, typed (`typ: "session"`), 30 days, checked against the database on every request (user must exist, `iat` must be after `users.auth_valid_after`, email is re-read from the DB). Admin revoke/suspend sets `auth_valid_after`. Sign-in state cookie is separately typed. `email_verified` must be true at sign-in.
+
+### Data model additions (beyond section 5)
+`anon_rate_counters` (hashed-IP buckets for anonymous throttles), `app_settings` (kill switch), `plan_grants` (pre-approvals), `deleted_accounts` (tombstone: sha256 of Google sub + plan + trial end, 12 months, so deleting data cannot reset a trial or lift a suspension), `users.auth_valid_after`. Migrations `drizzle/0000`-`0003`.
+
+### Routes
+Public: `/`, `/privacy`, `/terms`, `/account`, `/mcp`, `/.well-known/oauth-protected-resource[/mcp]`, `/.well-known/oauth-authorization-server`, `/oauth/{register,authorize,token,revoke}`. Sign-in: `/api/connect/google/{start,callback}`. Account: `/api/connect/account/{disconnect,delete}`, `/api/connect/logout`. Admin (all check `requireAdmin()`): `/admin`, `/admin/users/[id]`, `/admin/grants`, `/admin/usage`, `/admin/audit`, `/admin/invites`. Cron (Bearer `CRON_SECRET`): `/api/cron/trial-notices` (daily 09:00 UTC), `/api/cron/cleanup` (daily 03:00 UTC).
+
+### Operations and safeguards
+- Global kill switch in `/admin` (10 s cache; fails open if the lookup errors).
+- Throttles: `/oauth/register` 10/h per hashed IP (+1000/day global, denied attempts not counted); `/mcp` bad-token requests 300/h per hashed IP; per-user tool limits above. Client IP: `x-real-ip` only on Vercel, otherwise the rightmost `x-forwarded-for` hop.
+- Retention (`/api/cron/cleanup`): usage events 90 days, audit log 12 months, tombstones 12 months, expired tokens 30 days past expiry, unused OAuth clients after 7 days, old rate counters. Deleting a user also removes audit rows about them and pre-approvals for their email.
+- Security headers on every response (nosniff, X-Frame-Options DENY, frame-ancestors none, HSTS); `/admin` is `no-store, noindex`; the OAuth consent page sends `Referrer-Policy: same-origin` (not `no-referrer`, which made browsers send `Origin: null` and broke Approve).
+
+### Environment variables (as built)
+`PUBLIC_BASE_URL`, `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `TOKEN_ENC_KEYS`, `TOKEN_ENC_CURRENT`, `SESSION_SECRET`, `ADMIN_EMAILS`, `RESEND_API_KEY`, `MAIL_FROM`, `SUPPORT_EMAIL`, `BRAND_NAME`, `TRIAL_DAYS`, `CRON_SECRET`, `ALLOW_DEV_AUTH` (dev only). Validated lazily by `src/config/env.ts`; quote-wrapped values are rejected by name.
+
+### Known gaps (also tracked in STATUS.md)
+Refresh-token rotation not yet exercised on production; only Claude tested live; a refresh-token replay within seconds revokes the whole grant and token-pair insertion is not transactional; `users.email` is not unique; Vercel Hobby is non-commercial; Docker image never built (no Docker on the dev machine); Google verification not submitted (unverified-app warning, 100-user cap).

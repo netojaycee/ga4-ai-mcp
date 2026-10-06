@@ -45,6 +45,16 @@ describe("authorization_code grant", () => {
     expect((await res.json()).error).toBe("invalid_grant");
   });
 
+  it("a valid access token is rejected by a server whose /mcp URL differs (audience confusion)", async () => {
+    const r = await exchange(h, await getCode(h));
+    const token = r.body.access_token;
+    expect(await authn()(bearer(token))).not.toBeNull(); // sanity: valid for our own /mcp
+    const other = createAuthenticator(h.deps.tokens, () => "https://other-service.example/mcp", h.deps.now);
+    expect(await other(bearer(token))).toBeNull();
+    const lookalike = createAuthenticator(h.deps.tokens, () => `${MCP}/extra`, h.deps.now);
+    expect(await lookalike(bearer(token))).toBeNull();
+  });
+
   it("rejects resource mismatch", async () => {
     const code = await getCode(h);
     const r = await exchange(h, code, { resource: "https://other.example/mcp" });

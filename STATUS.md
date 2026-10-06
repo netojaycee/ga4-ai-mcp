@@ -1,5 +1,29 @@
 # STATUS
 
+> ## RESUME HERE (last updated 2026-10-06)
+>
+> **Where we are:** the product works end to end. A real Claude chat connects to `https://insights.johnedeh.com/mcp` through OAuth and reads the owner's real GA4 and Search Console data (read-only). Admin dashboard, team grants, trials, invites, retention cleanup, runbook and an independent security review are done and deployed. 320 tests pass. Phases 0-5 and 7 are complete; Phase 6 (client matrix) and Phase 8 (launch) remain.
+>
+> **Prove-it status:** Claude: verified. Everything else: not yet tried live (ChatGPT, Claude Code, Cursor, VS Code, others).
+>
+> ### Next steps, in order
+> 1. **Refresh-token check (5 minutes, do first).** The first Claude access token (issued 01:07 UTC on 2026-10-06) lives 1 hour. After it expired, use the connector in a new Claude chat, then confirm in the `oauth_tokens` table (prod) that a new chained access+refresh pair exists and the old refresh token is revoked. This is the only untested part of the OAuth flow.
+> 2. **Sign in again** at `/account` (the session cookie format changed during the security fixes), then open `/admin` and click through the not-yet-exercised actions: edit a plan/trial, suspend/unsuspend, revoke sessions, kill-switch toggle. Send one invite email to an address you control. Check that the daily crons ran (Vercel dashboard -> Cron Jobs).
+> 3. **Grant your company team access** at `/admin/grants` (plan `internal`), then have one teammate sign in with a second Google account to prove a pre-approval applies at first sign-in.
+> 4. **More clients (Phase 6):** Claude Code (`claude mcp add --transport http insights https://insights.johnedeh.com/mcp`, then `/mcp`), Cursor, VS Code, Windsurf. Cursor's native redirect is allowlisted but untested. Record results in `docs/clients.md`.
+> 5. **ChatGPT (6.1)** once a paid plan exists: Settings -> Apps -> Advanced -> Developer mode -> create the connector with the server URL and OAuth. Check which plan tier works (sources disagree: Plus vs Pro read-only vs Business).
+> 6. **Before real users:** rotate the Google client secret (it was on screen during setup; see `docs/runbook.md` section 4), lawyer review of `/privacy` and `/terms`, decide on hosting (Vercel Hobby is non-commercial: Pro ~$20/mo or Azure via the `Dockerfile`).
+> 7. **Launch work (Phase 8):** product name, logo, brand domain and mailboxes, Google OAuth verification (needs the privacy page live and a demo video, ~10 business days), billing, directory listings, migrate off personal accounts (`docs/migration.md`).
+>
+> ### Needs the owner (agents cannot do these)
+> Any Google/Claude/ChatGPT consent click, paid subscriptions, lawyer, naming/branding, rotating the Google secret (console shows it once), running desktop clients (Cursor/VS Code) and approving their sign-in.
+>
+> ### How to work in this repo
+> - Read `CLAUDE.md` (rules) then `ARCHITECTURE.md` (design + "as built" section at the end) and the protocol below. Runbook: `docs/runbook.md`. Client guide: `docs/clients.md`. Moving to the real brand: `docs/migration.md`.
+> - Commands: `npm run dev | test | lint | typecheck | build`; DB: `npm run db:generate`, `db:migrate` (dev branch), `db:migrate:prod` (explicit). Before any commit all of lint, typecheck, test, build pass. Pushing `main` deploys to production.
+> - Gotchas learned the hard way: `vercel env pull` wraps values in quotes (never copy them to Vercel unstripped; the app now rejects quoted values); the Neon `dev` branch needed its Drizzle journal seeded from prod (see runbook); unit tests with fake requests cannot catch browser behaviour (the consent page `Origin: null` bug), so test OAuth changes against a real client.
+> - Parallel agents duplicate STATUS.md table rows when merged: the integrator reconciles (keep the most advanced row).
+
 Single source of truth for work. Multiple agents may work in parallel; this file is how they stay in sync.
 Read [ARCHITECTURE.md](ARCHITECTURE.md) and [CLAUDE.md](CLAUDE.md) first.
 
@@ -33,7 +57,7 @@ Kind: `HUMAN` (needs owner) · `CODE` · `DOC` · `TEST`
 | 0.7 | Create Vercel project (link repo/folder), Neon database via Marketplace, set env vars | HUMAN | 0.2 | `docs/setup-hosting.md` | DONE | claude | 2026-10-06 | Vercel project `insights-mcp` (personal team); Neon `insights-mcp-db` provisioned via integration; prod env synced | Prod secrets differ from local. Dev and prod currently share one Neon DB |
 | 0.8 | Cloudflare DNS record for the subdomain → Vercel (DNS-only) | HUMAN | 0.7 | `docs/setup-hosting.md` | DONE | claude | 2026-10-06 | `curl https://insights.johnedeh.com` returns 200 with valid TLS | A record `insights` → 76.76.21.21, DNS only |
 | 0.9 | Confirm Resend domain `mail.johnedeh.com` works; create API key | HUMAN | n/a | `.env.local` | DONE | owner+claude | 2026-10-06 | Resend Domains page: `mail.johnedeh.com` Verified; `RESEND_API_KEY` set locally and in Vercel prod (sensitive) | `MAIL_FROM=Insights Connector <hello@mail.johnedeh.com>`. No test email sent yet |
-| 0.10 | Create `docs/credentials-registry.md` (names/locations/owners, no secrets) | DOC | n/a | `docs/credentials-registry.md` | TODO | | | | |
+| 0.10 | Create `docs/credentials-registry.md` (names/locations/owners, no secrets) | DOC | n/a | `docs/credentials-registry.md` | DONE | claude | 2026-10-06 | `docs/credentials-registry.md` (names and locations only) | Update whenever an account or secret location changes |
 
 ## Phase 1: Scaffold
 
@@ -64,8 +88,8 @@ Kind: `HUMAN` (needs owner) · `CODE` · `DOC` · `TEST`
 | 3.2 | Tool wrapper: auth → entitlement → rate/quota → Google token → call → error map → usage log | CODE | 3.1, 2.4 | `src/server/mcp/wrapper.ts` | DONE | agent-B |2026-10-05 23:55 UTC | `server/mcp/wrapper.ts`, `tools/account.ts`; `tests/mcp/wrapper.test.ts` (8 tests) | |
 | 3.3 | Register all tools from ARCHITECTURE §6 with precise descriptions and schemas | CODE | 3.2 | `src/server/mcp/tools/` | DONE | claude | 2026-10-06 | `src/server/mcp/tools/google.ts` registers 8 GA4/GSC tools; `tests/mcp/integration.test.ts`; live tools/list shows all 9 | All tools read-only and run through `runTool`. Not yet exercised with real Google data (needs a connected account, see 3.6) |
 | 3.4 | `plans/entitlements.ts` + Postgres rate counters and daily quotas | CODE | 1.3, 1.4 | `src/server/plans/`, `src/server/security/ratelimit.ts` | DONE | agent-B |2026-10-05 23:55 UTC | `tests/plans/{entitlements,ratelimit}.test.ts`; full suite 46 tests, lint/typecheck/build pass | |
-| 3.5 | Decide and implement `search`/`fetch` shims if ChatGPT requires them | CODE | 3.3 | `src/server/mcp/tools/` | TODO | | | | Check OpenAI docs first |
-| 3.6 | Test with MCP Inspector against local server | TEST | 3.3 | `docs/clients.md` | TODO | | | | |
+| 3.5 | Decide and implement `search`/`fetch` shims if ChatGPT requires them | CODE | 3.3 | `src/server/mcp/tools/` | DROPPED | claude | 2026-10-06 | OpenAI docs: `search`/`fetch` are required only for deep research and company knowledge; Developer Mode custom connectors may expose any tools | Revisit only if the real ChatGPT test (6.1) demands them |
+| 3.6 | Test with MCP Inspector against local server | TEST | 3.3 | `docs/clients.md` | DONE | claude+owner | 2026-10-06 | MCP Inspector was not used; instead a real Claude chat discovered and called the tools through the live connector, and scripted JSON-RPC calls covered every tool | Inspector can still be used for debugging |
 
 ## Phase 4: OAuth for MCP clients + Google connect
 
@@ -79,7 +103,7 @@ Kind: `HUMAN` (needs owner) · `CODE` · `DOC` · `TEST`
 | 4.6 | `/oauth/token`: code exchange, our access + rotating refresh tokens, reuse detection; `/oauth/revoke` | CODE | 4.3 | `src/app/api/oauth/token/` | DONE | agent-C | 2026-10-06T00:00Z | tests/oauth/token.test.ts (PKCE, replay, rotation, reuse, revoke) | |
 | 4.7 | Replace stub auth in `/mcp` with real token validation (hash, audience, expiry, revoked) | CODE | 4.6, 3.2 | `src/server/mcp/auth.ts` | DONE | agent-C+claude | 2026-10-06 | `authenticateBearer` wired into `/mcp` via `src/server/mcp/auth.ts`; `tests/mcp/auth.test.ts` covers composition and production guard | Dev header fallback works only when NODE_ENV is not production |
 | 4.8 | Disconnect flow: revoke at Google, delete token, revoke our tokens, delete data on request | CODE | 4.4 | `src/server/google/`, `src/app/(site)/account/` | DONE | agent-D | 2026-10-05 23:56 UTC | `tests/connect/account.test.ts`: disconnect revokes at Google + oauth_tokens + audit, delete cascades, CSRF/origin rejects | Page `/account` (`src/app/account/`), POST `/api/connect/account/{disconnect,delete}`. Connection row is deleted on disconnect |
-| 4.9 | Security tests: PKCE failures, code reuse, redirect mismatch, audience mismatch, token confusion | TEST | 4.7 | `tests/oauth/` | DOING | agent-C | 2026-10-06T00:00Z | tests/oauth/** (65 tests total pass); oauth part only | |
+| 4.9 | Security tests: PKCE failures, code reuse, redirect mismatch, audience mismatch, token confusion | TEST | 4.7 | `tests/oauth/` | DONE | agent-C+claude | 2026-10-06 | `tests/oauth/**` (PKCE, code reuse, redirect mismatch, resource/audience mismatch incl. an access token rejected by a different /mcp URL, refresh reuse, refresh token or query-string token as bearer, revoked/expired) | 57 OAuth tests |
 
 ## Phase 5: Admin dashboard, plans, trials
 
@@ -114,7 +138,7 @@ Record result per client: connected? OAuth ok? tools listed? sample call ok? qui
 | 7.2 | Landing page + privacy/terms **stubs** + setup guide (lawyer owns final text) | CODE | 1.3 | `src/app/(site)/` | DONE | claude | 2026-10-06 | `/`, `/privacy`, `/terms` render (200) locally and in build; production check after deploy | Content reflects actual data handling (no analytics stored, encrypted refresh token, Limited Use). **Owner's lawyer must review wording before launch.** Uses optional `SUPPORT_EMAIL` env |
 | 7.3 | Working `Dockerfile` (Azure portability) and verify build runs outside Vercel | CODE | P5 | `Dockerfile` | DONE | claude | 2026-10-06 | `Dockerfile` + `.dockerignore`; `BUILD_STANDALONE=1` build succeeds with no env; standalone `server.js` run in production mode served pages, static assets, 401 on /mcp, dev header refused | **Docker is not installed on this machine, so the image itself was never built.** Cron needs the platform scheduler in a container |
 | 7.4 | `docs/migration.md` from ARCHITECTURE §12 checklist, `docs/runbook.md` (incidents, key rotation, revoke-all) | DOC | n/a | `docs/` | DONE | claude | 2026-10-06 | `docs/runbook.md`, `docs/migration.md` | Procedures not yet drilled (e.g. key rotation, rollback) |
-| 7.5 | Deploy to Vercel production URL; end-to-end smoke test from ChatGPT and Claude | TEST | P6 | n/a | TODO | | | | |
+| 7.5 | Deploy to Vercel production URL; end-to-end smoke test from ChatGPT and Claude | TEST | P6 | n/a | DONE | claude+owner | 2026-10-06 | Production at `https://insights.johnedeh.com` smoke-tested end to end with Claude (real OAuth handshake + real data) | ChatGPT part of the original wording is pending (6.1, needs a paid plan) |
 
 ## Phase 8: Pre-launch (later, mostly non-technical)
 
