@@ -96,6 +96,12 @@ describe("authorize: consent POST", () => {
   const post = (fields: Record<string, string>, headers: Record<string, string>) =>
     handleAuthorizePost(h.deps, formReq(`${BASE}/oauth/authorize`, fields, headers));
 
+  it("warns that the client registered itself and its name is unverified", async () => {
+    const html = await (await get(authorizeUrl())).text();
+    expect(html).toMatch(/registered itself automatically/);
+    expect(html).toMatch(/not verified by us/);
+  });
+
   it("rejects missing, mismatched or absent csrf", async () => {
     const { csrf, fields } = await consent();
     for (const r of [

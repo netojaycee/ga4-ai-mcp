@@ -21,13 +21,26 @@ describe("dev stub authenticator", () => {
     vi.mocked(authenticateBearer).mockResolvedValueOnce({ userId: "real", clientId: "c", scope: "analytics:read" });
     expect(await authenticateMcp(req({ authorization: "Bearer good", "x-dev-user-id": "abc" }))).toMatchObject({ userId: "real" });
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("ALLOW_DEV_AUTH", "1");
     expect(await authenticateMcp(req({ "x-dev-user-id": "abc" }))).toMatchObject({ clientId: "dev-stub" });
     vi.stubEnv("NODE_ENV", "production");
     expect(await authenticateMcp(req({ "x-dev-user-id": "abc" }))).toBeNull();
   });
 
+  it("needs the explicit ALLOW_DEV_AUTH=1 switch even outside production", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("ALLOW_DEV_AUTH", "");
+    expect(await devStubAuthenticator(req({ "x-dev-user-id": "abc" }))).toBeNull();
+    vi.stubEnv("ALLOW_DEV_AUTH", "true");
+    expect(await devStubAuthenticator(req({ "x-dev-user-id": "abc" }))).toBeNull(); // only the literal "1"
+    vi.stubEnv("NODE_ENV", "test");
+    vi.stubEnv("ALLOW_DEV_AUTH", "");
+    expect(await devStubAuthenticator(req({ "x-dev-user-id": "abc" }))).toBeNull();
+  });
+
   it("accepts the dev header outside production", async () => {
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("ALLOW_DEV_AUTH", "1");
     expect(await devStubAuthenticator(req({ "x-dev-user-id": "abc" }))).toEqual({
       userId: "abc", clientId: "dev-stub", scope: "",
     });
@@ -35,6 +48,7 @@ describe("dev stub authenticator", () => {
 
   it("returns null without the header", async () => {
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("ALLOW_DEV_AUTH", "1");
     expect(await devStubAuthenticator(req())).toBeNull();
     expect(await devStubAuthenticator(req({ authorization: "Bearer whatever" }))).toBeNull();
   });

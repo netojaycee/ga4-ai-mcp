@@ -1,6 +1,6 @@
-import { eq, isNull, and } from "drizzle-orm";
+import { eq, isNull, and, or } from "drizzle-orm";
 import { db } from "@/server/db/client";
-import { auditLog, googleConnections, oauthTokens, planGrants, users } from "@/server/db/schema";
+import { auditLog, deletedAccounts, googleConnections, oauthTokens, planGrants, users } from "@/server/db/schema";
 import type { Plan } from "@/config/plans";
 
 export interface UpsertUserInput {
@@ -38,7 +38,16 @@ export interface ConnectRepository {
   getConnectionTokenEnc(userId: string): Promise<string | null>;
   deleteConnection(userId: string): Promise<void>;
   revokeOAuthTokens(userId: string, now: Date): Promise<number>;
+  /**
+   * Deletes the user (cascades) and everything that identifies them outside the cascade: audit rows about or by
+   * them and pre-approvals for their email. Plan state survives only as a one-way-hash tombstone (see below).
+   */
   deleteUser(userId: string): Promise<void>;
+  /** Plan state remembered for a deleted account (keyed by sha256 of the Google sub), or null. */
+  findTombstone(subHash: string): Promise<{ plan: Plan; trialEndsAt: Date | null } | null>;
+  recordTombstone(t: { subHash: string; plan: Plan; trialEndsAt: Date | null; now: Date }): Promise<void>;
+  /** Everything needed to write a tombstone before deletion. */
+  getDeletionFacts(userId: string): Promise<{ googleSub: string; plan: Plan; trialEndsAt: Date | null } | null>;
   /** Unapplied pre-approved plan for this (lower-cased) email, set by an admin before first sign-in. */
   findPendingGrant(email: string): Promise<{ plan: Plan } | null>;
   markGrantApplied(email: string, now: Date): Promise<void>;
@@ -116,7 +125,37 @@ export function drizzleConnectRepository(): ConnectRepository {
       return rows.length;
     },
     async deleteUser(userId) {
+      const [u] = await db().select({ email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
       await db().delete(users).where(eq(users.id, userId));
+      await db()
+        .delete(auditLog)
+        .where(or(eq(auditLog.target, userId), eq(auditLog.actor, `user:${userId}`)));
+      if (u) await db().delete(planGrants).where(eq(planGrants.email, u.email.toLowerCase()));
+    },
+    async findTombstone(subHash) {
+      const [t] = await db()
+        .select({ plan: deletedAccounts.plan, trialEndsAt: deletedAccounts.trialEndsAt })
+        .from(deletedAccounts)
+        .where(eq(deletedAccounts.subHash, subHash))
+        .limit(1);
+      return t ?? null;
+    },
+    async recordTombstone(t) {
+      await db()
+        .insert(deletedAccounts)
+        .values({ subHash: t.subHash, plan: t.plan, trialEndsAt: t.trialEndsAt, deletedAt: t.now })
+        .onConflictDoUpdate({
+          target: deletedAccounts.subHash,
+          set: { plan: t.plan, trialEndsAt: t.trialEndsAt, deletedAt: t.now },
+        });
+    },
+    async getDeletionFacts(userId) {
+      const [u] = await db()
+        .select({ googleSub: users.googleSub, plan: users.plan, trialEndsAt: users.trialEndsAt })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      return u ?? null;
     },
     async findPendingGrant(email) {
       const [g] = await db()

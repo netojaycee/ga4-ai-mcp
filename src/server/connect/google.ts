@@ -44,8 +44,18 @@ const idClaims = z.object({
   exp: z.number(),
   sub: z.string().min(1),
   email: z.string().min(3),
+  /** Google sends a boolean; some token paths have been seen to send the string "true". */
+  email_verified: z.union([z.boolean(), z.enum(["true", "false"])]).optional(),
   name: z.string().optional(),
 });
+
+/** The Google account's email is not verified, so it must not drive plan grants or admin access. */
+export class EmailNotVerifiedError extends Error {
+  constructor() {
+    super("Google account email is not verified");
+    this.name = "EmailNotVerifiedError";
+  }
+}
 
 /**
  * Validates ID token claims. The token comes straight from Google's token endpoint over TLS in exchange
@@ -63,10 +73,11 @@ export function parseIdToken(idToken: string, clientId: string, nowSeconds: numb
   }
   const c = idClaims.safeParse(raw);
   if (!c.success) throw new Error("ID token is missing required claims");
-  const { iss, aud, exp, sub, email, name } = c.data;
+  const { iss, aud, exp, sub, email, name, email_verified } = c.data;
   if (iss !== "https://accounts.google.com" && iss !== "accounts.google.com") throw new Error("ID token issuer mismatch");
   if (!(Array.isArray(aud) ? aud.includes(clientId) : aud === clientId)) throw new Error("ID token audience mismatch");
   if (exp <= nowSeconds) throw new Error("ID token expired");
+  if (email_verified !== true && email_verified !== "true") throw new EmailNotVerifiedError();
   return { sub, email, name: name ?? null };
 }
 

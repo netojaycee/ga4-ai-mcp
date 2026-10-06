@@ -14,6 +14,7 @@ export function idToken(claims: Record<string, unknown> = {}): string {
     exp: Math.floor(NOW / 1000) + 3600,
     sub: "sub-1",
     email: "a@example.com",
+    email_verified: true,
     name: "Ann",
     ...claims,
   };
@@ -63,9 +64,24 @@ export class FakeRepo implements ConnectRepository {
     return n;
   }
   async deleteUser(userId: string) {
+    const u = this.users.get(userId);
     this.users.delete(userId);
     this.connections.delete(userId);
     this.tokens = this.tokens.filter((t) => t.userId !== userId);
+    // mirrors the real repository: audit rows about/by the user and pre-approvals for their email are purged
+    this.audits = this.audits.filter((a) => a.target !== userId && a.actor !== `user:${userId}`);
+    if (u) this.grants.delete(u.email.toLowerCase());
+  }
+  tombstones = new Map<string, { plan: AccountView["plan"]; trialEndsAt: Date | null }>();
+  async findTombstone(subHash: string) {
+    return this.tombstones.get(subHash) ?? null;
+  }
+  async recordTombstone(t: { subHash: string; plan: AccountView["plan"]; trialEndsAt: Date | null; now: Date }) {
+    this.tombstones.set(t.subHash, { plan: t.plan, trialEndsAt: t.trialEndsAt });
+  }
+  async getDeletionFacts(userId: string) {
+    const u = this.users.get(userId);
+    return u ? { googleSub: u.googleSub, plan: u.plan as AccountView["plan"], trialEndsAt: u.trialEndsAt } : null;
   }
   grants = new Map<string, { plan: string; appliedAt: Date | null }>();
   async findPendingGrant(email: string) {

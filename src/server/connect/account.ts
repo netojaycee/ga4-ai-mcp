@@ -1,4 +1,5 @@
 import { clearSessionCookie, getSessionUserFromCookieHeader, verifyCsrf, type SessionDeps } from "@/server/auth/session";
+import { sha256Hex } from "@/server/security/hash";
 import { htmlPage, redirect } from "./html";
 import type { GoogleClient } from "./google";
 import type { ConnectRepository } from "./repository";
@@ -36,6 +37,16 @@ export async function disconnectUser(
 
 /** Everything in disconnectUser, then deletes the user row (cascades) and clears the session. */
 export async function deleteUserData(d: Pick<AccountDeps, "google" | "repo" | "decrypt" | "now">, userId: string) {
+  // Remember plan state first, so deleting and signing in again cannot reset a trial or lift a suspension.
+  const facts = await d.repo.getDeletionFacts(userId);
+  if (facts) {
+    await d.repo.recordTombstone({
+      subHash: sha256Hex(facts.googleSub),
+      plan: facts.plan,
+      trialEndsAt: facts.trialEndsAt,
+      now: new Date(d.now()),
+    });
+  }
   await disconnectUser(d, userId, "account.delete");
   await d.repo.deleteUser(userId);
 }
@@ -76,4 +87,23 @@ export async function handleAccountAction(req: Request, d: AccountDeps, kind: "d
   }
   await disconnectUser(d, user.userId, "account.disconnect");
   return redirect(`${d.baseUrl}/account?msg=disconnected`, [], 303);
+}
+
+/** POST /api/connect/logout: ends this browser's session (CSRF + Origin checked). Does not touch Google or AI client tokens. */
+export async function handleLogout(req: Request, d: Pick<AccountDeps, "baseUrl" | "sessionSecret">): Promise<Response> {
+  const cookie = req.headers.get("cookie");
+  let token: string | null = null;
+  try {
+    token = String((await req.formData()).get("csrf") ?? "") || null;
+  } catch {
+    token = null;
+  }
+  if (!originOk(req, d.baseUrl) || !verifyCsrf(cookie, token, d.sessionSecret)) {
+    return htmlPage({
+      title: "Request could not be verified",
+      status: 403,
+      bodyHtml: '<p>The security check for this request failed. Go back to your <a href="/account">account page</a>, reload it and try again.</p>',
+    });
+  }
+  return redirect(`${d.baseUrl}/account?msg=signedout`, [clearSessionCookie()], 303);
 }

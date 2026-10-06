@@ -1,8 +1,8 @@
 import { DEFAULT_PLAN_FOR_NEW_USERS, type Plan } from "@/config/plans";
 import { createSessionCookie } from "@/server/auth/session";
-import { pkceS256, randomToken, safeEqual } from "@/server/security/hash";
+import { pkceS256, randomToken, safeEqual, sha256Hex } from "@/server/security/hash";
 import { escapeHtml, htmlPage, redirect } from "./html";
-import { missingScopes, type GoogleClient, REQUIRED_SCOPES } from "./google";
+import { EmailNotVerifiedError, missingScopes, type GoogleClient, REQUIRED_SCOPES } from "./google";
 import type { ConnectRepository } from "./repository";
 import { sanitizeReturnTo } from "./returnTo";
 import { readCookie, serializeCookie, signPayload, verifyPayload } from "./signed";
@@ -26,6 +26,8 @@ export interface ConnectDeps {
 }
 
 interface StatePayload {
+  /** Domain separation from the session cookie, which shares the signing secret. */
+  typ: "oauth_state";
   state: string;
   verifier: string;
   returnTo: string;
@@ -43,7 +45,7 @@ export function handleStart(req: Request, d: ConnectDeps): Response {
   const state = randomToken(24);
   const verifier = randomToken(48);
   const exp = Math.floor(d.now() / 1000) + STATE_TTL_SECONDS;
-  const cookie = stateCookie(signPayload({ state, verifier, returnTo, exp } satisfies StatePayload, d.sessionSecret), STATE_TTL_SECONDS, d);
+  const cookie = stateCookie(signPayload({ typ: "oauth_state", state, verifier, returnTo, exp } satisfies StatePayload, d.sessionSecret), STATE_TTL_SECONDS, d);
   const url = d.google.authUrl({
     redirectUri: `${d.baseUrl}${CALLBACK_PATH}`,
     state,
@@ -58,11 +60,12 @@ export async function handleCallback(req: Request, d: ConnectDeps): Promise<Resp
   const fail = (title: string, body: string, status = 400, returnTo = "/account") =>
     htmlPage({ title, status, bodyHtml: body + retryLink(returnTo), setCookies: [clearState] });
 
-  const saved = verifyPayload<StatePayload>(
+  const verified = verifyPayload<StatePayload>(
     readCookie(req.headers.get("cookie"), STATE_COOKIE),
     d.sessionSecret,
     Math.floor(d.now() / 1000),
   );
+  const saved = verified?.typ === "oauth_state" ? verified : null;
   const returnTo = saved ? sanitizeReturnTo(saved.returnTo) : "/account";
 
   if (params.get("error") === "access_denied") {
@@ -92,7 +95,15 @@ export async function handleCallback(req: Request, d: ConnectDeps): Promise<Resp
   try {
     tokens = await d.google.exchangeCode({ code, redirectUri: `${d.baseUrl}${CALLBACK_PATH}`, codeVerifier: saved.verifier });
     identity = d.google.verifyIdToken(tokens.idToken);
-  } catch {
+  } catch (err) {
+    if (err instanceof EmailNotVerifiedError) {
+      return fail(
+        "Verify your Google email first",
+        "<p>The email address on this Google account is not verified, so we cannot sign you in with it. Verify it in your Google account settings, or use a different Google account.</p>",
+        403,
+        returnTo,
+      );
+    }
     return fail("Google sign-in failed", "<p>We could not complete the sign-in with Google. Please try again.</p>", 502, returnTo);
   }
 
@@ -121,8 +132,15 @@ export async function handleCallback(req: Request, d: ConnectDeps): Promise<Resp
 
   const now = new Date(d.now());
   const grant = await d.repo.findPendingGrant(identity.email.toLowerCase());
-  const plan = grant?.plan ?? d.defaultPlan ?? DEFAULT_PLAN_FOR_NEW_USERS;
-  const trialEndsAt = plan === "internal" ? null : new Date(now.getTime() + d.trialDays * 86_400_000);
+  // A returning account that deleted its data keeps its previous plan state (no fresh trial, no lifted suspension).
+  // An explicit admin grant still wins.
+  const tomb = grant ? null : await d.repo.findTombstone(sha256Hex(identity.sub));
+  const plan = grant?.plan ?? tomb?.plan ?? d.defaultPlan ?? DEFAULT_PLAN_FOR_NEW_USERS;
+  const trialEndsAt = tomb
+    ? tomb.trialEndsAt
+    : plan === "internal"
+      ? null
+      : new Date(now.getTime() + d.trialDays * 86_400_000);
   const user = await d.repo.upsertUser({
     googleSub: identity.sub,
     email: identity.email,

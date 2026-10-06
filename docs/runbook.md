@@ -23,6 +23,9 @@ Production: `https://insights.johnedeh.com` (Vercel project `insights-mcp`, Neon
 - **Grant team access**: `/admin/grants`. **Invite**: `/admin/invites`.
 - **Cron** (Vercel Cron, daily): `/api/cron/trial-notices` 09:00 UTC, `/api/cron/cleanup` 03:00 UTC. Manual run: `curl -H "Authorization: Bearer $CRON_SECRET" https://insights.johnedeh.com/api/cron/cleanup` (get the secret from Vercel env; do not paste it into chat or docs).
 
+### Dev database gotcha (migration journal)
+A Neon "schema only" branch copies the tables but NOT Drizzle's journal (`drizzle.__drizzle_migrations`). On a fresh dev branch `npm run db:migrate` then tries to re-run migration 0000, fails with "already exists", and `drizzle-kit` prints no error (check the exit code: `npm run db:migrate; echo $?`). Fix: copy the journal rows from production into the dev branch once (`select hash, created_at from drizzle.__drizzle_migrations order by id` on prod, insert into dev), then migrate. Done for the current `dev` branch on 2026-10-06.
+
 ## 4. Rotating secrets
 | Secret | How | Impact |
 |---|---|---|

@@ -82,7 +82,7 @@ export default function Privacy() {
         revokes our access with Google, deletes the stored token and ends all assistant sessions. You can also choose{" "}
         <em>Delete my data</em> there to remove your account record. You can revoke access from Google directly at{" "}
         <a className="underline" href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.
-        Usage records are kept for a limited period for security and then removed.
+        Usage records (time, tool, property or site identifier, success, response time, row count) are kept for 90 days and then deleted. A short log of administrative and sign-in events is kept for up to 12 months. When you choose <em>Delete my data</em>, your account, tokens, the log entries about you and any pre-approval for your email are deleted immediately; usage records are detached from you and removed within 90 days. To prevent repeated free trials and lifted suspensions, we keep for 12 months a one-way hash of your Google account identifier together with your plan status (no email or name).
       </p>
 
       <h2 className="text-xl font-semibold">Contact</h2>

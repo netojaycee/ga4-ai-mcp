@@ -12,6 +12,7 @@ export const metadata: Metadata = { title: "Your account", robots: { index: fals
 const MESSAGES: Record<string, string> = {
   disconnected: "Google has been disconnected and your AI client tokens were revoked.",
   deleted: "Your data was deleted and you have been signed out.",
+  signedout: "You have been signed out of this browser.",
 };
 
 const fmt = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "none");
@@ -58,6 +59,14 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           <a href={connectStartPath("/account")}>Connect Google</a>
         </p>
       )}
+      <section aria-labelledby="signout-h">
+        <h2 id="signout-h">Sign out</h2>
+        <p>Ends your session in this browser only. Your Google connection and AI clients stay as they are.</p>
+        <form method="post" action="/api/connect/logout">
+          <input type="hidden" name="csrf" value={csrf} />
+          <button type="submit">Sign out</button>
+        </form>
+      </section>
       <section aria-labelledby="disconnect-h">
         <h2 id="disconnect-h">Disconnect Google</h2>
         <p>Revokes our access at Google and signs your AI clients out. Your account stays so you can reconnect later.</p>

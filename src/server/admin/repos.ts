@@ -82,6 +82,8 @@ export function drizzleAdminUsersRepo(now: () => Date = () => new Date()): Admin
       await db().update(users).set(patch).where(eq(users.id, id));
     },
     async revokeTokens(id, at) {
+      // Also end the user's browser sessions: cookies issued before `at` stop working.
+      await db().update(users).set({ authValidAfter: at }).where(eq(users.id, id));
       const rows = await db()
         .update(oauthTokens)
         .set({ revokedAt: at })

@@ -85,3 +85,38 @@ describe("/mcp handler", () => {
     expect(usage[0]).toMatchObject({ tool: "account_status", ok: true });
   });
 });
+
+describe("/mcp unauthenticated throttle", () => {
+  const mk = (limit: () => Promise<{ allowed: boolean; retryAfterSeconds: number }>) =>
+    createMcpHandler({ authenticate: async () => null, publicBaseUrl: () => BASE, limitUnauthenticated: limit });
+
+  it("answers 429 with Retry-After once a source is over the limit, instead of 401", async () => {
+    const res = await mk(async () => ({ allowed: false, retryAfterSeconds: 77 }))(post({}));
+    expect(res.status).toBe(429);
+    expect(res.headers.get("retry-after")).toBe("77");
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
+  });
+
+  it("still answers a normal 401 (with WWW-Authenticate) while under the limit", async () => {
+    const res = await mk(async () => ({ allowed: true, retryAfterSeconds: 0 }))(post({}));
+    expect(res.status).toBe(401);
+    expect(res.headers.get("www-authenticate")).toBe(RM);
+  });
+
+  it("a failing limiter degrades to a plain 401 (never 500, never lets the request through)", async () => {
+    const res = await mk(async () => { throw new Error("db down"); })(post({}));
+    expect(res.status).toBe(401);
+  });
+
+  it("does not count or limit authenticated requests", async () => {
+    let calls = 0;
+    const handle = createMcpHandler({
+      authenticate: async () => ctx,
+      publicBaseUrl: () => BASE,
+      limitUnauthenticated: async () => { calls++; return { allowed: false, retryAfterSeconds: 1 }; },
+    });
+    const res = await handle(post({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "1" } } }));
+    expect(res.status).not.toBe(429);
+    expect(calls).toBe(0);
+  });
+});

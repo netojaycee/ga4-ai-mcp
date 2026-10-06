@@ -14,7 +14,7 @@ function memoryStore(): AnonRateStore & { keys: string[] } {
   };
 }
 const rule = { name: "register", perIpPerHour: 3, globalPerDay: 5 };
-const req = (ip: string) => new Request("https://x.test/oauth/register", { headers: { "x-forwarded-for": `${ip}, 10.0.0.1` } });
+const req = (ip: string) => new Request("https://x.test/oauth/register", { headers: { "x-forwarded-for": `${ip}` } });
 const now = new Date("2026-10-06T12:30:00Z");
 
 describe("anonymous rate limit", () => {
@@ -42,9 +42,33 @@ describe("anonymous rate limit", () => {
     expect(s.keys.join(" ")).not.toContain("203.0.113.9");
   });
 
-  it("prefers x-real-ip, falls back to the first forwarded address, then 'unknown'", () => {
-    expect(clientIp(new Request("https://x.test", { headers: { "x-real-ip": "9.9.9.9", "x-forwarded-for": "1.1.1.1" } }))).toBe("9.9.9.9");
-    expect(clientIp(req("1.1.1.1"))).toBe("1.1.1.1");
-    expect(clientIp(new Request("https://x.test"))).toBe("unknown");
+  it("on a trusted platform (Vercel) uses x-real-ip, then the forwarded address", () => {
+    const r = new Request("https://x.test", { headers: { "x-real-ip": "9.9.9.9", "x-forwarded-for": "1.1.1.1" } });
+    expect(clientIp(r, { trustRealIp: true })).toBe("9.9.9.9");
+    expect(clientIp(req("1.1.1.1"), { trustRealIp: true })).toBe("1.1.1.1");
+  });
+
+  it("elsewhere ignores client-settable x-real-ip and the spoofable left side of x-forwarded-for", () => {
+    const spoof = new Request("https://x.test", { headers: { "x-real-ip": "6.6.6.6", "x-forwarded-for": "7.7.7.7, 8.8.8.8, 203.0.113.5" } });
+    expect(clientIp(spoof, { trustRealIp: false })).toBe("203.0.113.5"); // the hop our own proxy appended
+    expect(clientIp(new Request("https://x.test"), { trustRealIp: false })).toBe("unknown");
+  });
+
+  it("a spoofer rotating the left side of x-forwarded-for stays in ONE bucket", async () => {
+    const s = memoryStore();
+    const attempts = ["1.0.0.1", "1.0.0.2", "1.0.0.3", "1.0.0.4"].map(
+      (spoofed) => new Request("https://x.test", { headers: { "x-forwarded-for": `${spoofed}, 203.0.113.5` } }),
+    );
+    const results = [];
+    for (const a of attempts) results.push((await consumeAnonLimit(s, rule, a, now, { trustRealIp: false })).allowed);
+    expect(results).toEqual([true, true, true, false]); // per-IP limit of 3 holds
+  });
+
+  it("denied attempts do not drain the global budget (no lockout of other callers)", async () => {
+    const s = memoryStore();
+    for (let i = 0; i < 50; i++) await consumeAnonLimit(s, rule, req("9.9.9.9"), now); // one abusive source
+    // global cap is 5/day and only 3 of the 50 were allowed, so other callers still get through
+    expect((await consumeAnonLimit(s, rule, req("2.2.2.2"), now)).allowed).toBe(true);
+    expect((await consumeAnonLimit(s, rule, req("3.3.3.3"), now)).allowed).toBe(true);
   });
 });

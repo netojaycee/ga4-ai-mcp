@@ -2,6 +2,8 @@ import { and, eq, lt, notExists, or, sql } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import {
   anonRateCounters,
+  auditLog,
+  deletedAccounts,
   oauthAuthCodes,
   oauthClients,
   oauthTokens,
@@ -14,6 +16,8 @@ const DAY = 86_400_000;
 /** Retention windows. The privacy policy promises usage records are kept for a limited period. */
 export const RETENTION = {
   usageEventsDays: 90,
+  auditLogDays: 365,
+  tombstoneDays: 365,
   tokensDaysAfterExpiry: 30,
   authCodesDaysAfterExpiry: 1,
   unusedClientDays: 7,
@@ -27,6 +31,8 @@ export interface CleanupStore {
   deleteDeadTokens(before: Date): Promise<number>;
   deleteDeadAuthCodes(expiredBefore: Date): Promise<number>;
   deleteOldUsageEvents(before: Date): Promise<number>;
+  deleteOldAuditLog(before: Date): Promise<number>;
+  deleteOldTombstones(before: Date): Promise<number>;
   /** Window keys sort lexicographically in time, so a cutoff key deletes everything older. */
   deleteOldRateCounters(minuteKeyCutoff: string, dayKeyCutoff: string): Promise<number>;
   deleteOldAnonCounters(hourKeyCutoff: string, dayKeyCutoff: string): Promise<number>;
@@ -37,6 +43,8 @@ export interface CleanupSummary {
   deadTokens: number;
   deadAuthCodes: number;
   usageEvents: number;
+  auditLog: number;
+  tombstones: number;
   rateCounters: number;
   anonCounters: number;
 }
@@ -52,6 +60,8 @@ export async function runCleanup(store: CleanupStore, now: Date): Promise<Cleanu
   const deadAuthCodes = await store.deleteDeadAuthCodes(ago(now, RETENTION.authCodesDaysAfterExpiry));
   const unusedClients = await store.deleteUnusedClients(ago(now, RETENTION.unusedClientDays));
   const usageEventsDeleted = await store.deleteOldUsageEvents(ago(now, RETENTION.usageEventsDays));
+  const auditLogDeleted = await store.deleteOldAuditLog(ago(now, RETENTION.auditLogDays));
+  const tombstones = await store.deleteOldTombstones(ago(now, RETENTION.tombstoneDays));
   const rate = await store.deleteOldRateCounters(
     minuteKeyAt(ago(now, RETENTION.minuteCounterDays)),
     dayKeyAt(ago(now, RETENTION.dayCounterDays)),
@@ -65,6 +75,8 @@ export async function runCleanup(store: CleanupStore, now: Date): Promise<Cleanu
     deadTokens,
     deadAuthCodes,
     usageEvents: usageEventsDeleted,
+    auditLog: auditLogDeleted,
+    tombstones,
     rateCounters: rate,
     anonCounters: anon,
   };
@@ -103,6 +115,17 @@ export function drizzleCleanupStore(): CleanupStore {
     },
     async deleteOldUsageEvents(before) {
       const rows = await db().delete(usageEvents).where(lt(usageEvents.createdAt, before)).returning({ id: usageEvents.id });
+      return rows.length;
+    },
+    async deleteOldAuditLog(before) {
+      const rows = await db().delete(auditLog).where(lt(auditLog.createdAt, before)).returning({ id: auditLog.id });
+      return rows.length;
+    },
+    async deleteOldTombstones(before) {
+      const rows = await db()
+        .delete(deletedAccounts)
+        .where(lt(deletedAccounts.deletedAt, before))
+        .returning({ k: deletedAccounts.subHash });
       return rows.length;
     },
     async deleteOldRateCounters(minuteKeyCutoff, dayKeyCutoff) {

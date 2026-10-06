@@ -75,7 +75,10 @@ describe("account actions", () => {
     const res = await handleAccountAction(post(cookie, { csrf }, { origin: BASE }), deps, "delete");
     expect(res.status).toBe(303);
     expect(repo.users.has(id)).toBe(false);
-    expect(repo.audits.at(-1)).toMatchObject({ action: "account.delete" });
+    // audit rows about the deleted user are purged (privacy policy), but plan state survives as a hash-keyed tombstone
+    expect(repo.audits.some((a) => a.target === id)).toBe(false);
+    expect(repo.tombstones.size).toBe(1);
+    expect([...repo.tombstones.keys()][0]).toMatch(/^[0-9a-f]{64}$/);
     const cleared = res.headers.getSetCookie().find((c) => c.startsWith(`${SESSION_COOKIE}=`))!;
     expect(cleared).toContain("Max-Age=0");
   });

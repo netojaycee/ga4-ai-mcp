@@ -1,5 +1,6 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { McpAuthenticator } from "@/server/auth/context";
+import type { AnonLimitResult } from "@/server/security/anon-ratelimit";
 import { buildMcpServer } from "./server";
 import type { ToolDefinition } from "./tools/types";
 import type { WrapperDeps } from "./wrapper";
@@ -10,6 +11,11 @@ export interface McpHandlerOptions {
   publicBaseUrl: () => string;
   tools?: ToolDefinition[];
   wrapperDeps?: WrapperDeps;
+  /**
+   * Throttle for requests with a missing/invalid token (each costs a DB lookup). Errors from the limiter are
+   * swallowed: a failing limiter must never turn a 401 into a 500 or let an unauthenticated request through.
+   */
+  limitUnauthenticated?: (req: Request) => Promise<AnonLimitResult>;
 }
 
 // Bearer tokens only (no cookies), so a wildcard origin is safe and lets browser-based clients connect.
@@ -41,6 +47,20 @@ export function createMcpHandler(opts: McpHandlerOptions) {
       return withCors(Response.json({ error: "server_error" }, { status: 500 }));
     }
     if (!ctx) {
+      let limit: AnonLimitResult | undefined;
+      try {
+        limit = await opts.limitUnauthenticated?.(req);
+      } catch {
+        limit = undefined;
+      }
+      if (limit && !limit.allowed) {
+        return withCors(
+          Response.json(
+            { error: "rate_limited", error_description: "Too many unauthenticated requests. Try again later." },
+            { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+          ),
+        );
+      }
       return withCors(
         Response.json(
           { error: "unauthorized", error_description: "A valid access token is required." },

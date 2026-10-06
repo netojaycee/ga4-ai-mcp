@@ -25,23 +25,41 @@ export const SESSION_COOKIE = "ga_session";
 export const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 interface SessionPayload {
+  /** Domain separation: other signed cookies (e.g. the OAuth state cookie) share the secret but not this type. */
+  typ: "session";
   uid: string;
+  /** Kept for display only; authorization always uses the email re-read from the database. */
   email: string;
+  /** Issued-at, unix seconds. */
+  iat: number;
   exp: number;
+}
+
+export interface UserSessionState {
+  email: string;
+  authValidAfter: Date | null;
 }
 
 export interface SessionDeps {
   secret: () => string;
-  userExists: (userId: string) => Promise<boolean>;
   now: () => number;
+  /** Current database state for the session's user, or null if the user no longer exists. */
+  userState?: (userId: string) => Promise<UserSessionState | null>;
+  /** Legacy/test shortcut: existence check only (the cookie's email is then trusted and no revocation time applies). */
+  userExists?: (userId: string) => Promise<boolean>;
 }
 
-const defaultDeps: SessionDeps = {
+const defaultUserState = async (userId: string): Promise<UserSessionState | null> => {
+  const [u] = await db()
+    .select({ email: users.email, authValidAfter: users.authValidAfter })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  return u ?? null;
+};
+
+const defaultDeps = {
   secret: () => env().SESSION_SECRET,
-  userExists: async (userId) => {
-    const rows = await db().select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
-    return rows.length > 0;
-  },
   now: () => Date.now(),
 };
 
@@ -56,9 +74,17 @@ export async function getSessionUserFromCookieHeader(
 ): Promise<SessionUser | null> {
   const d = { ...defaultDeps, ...deps };
   const p = verifyPayload<SessionPayload>(readCookie(cookieHeader, SESSION_COOKIE), d.secret(), Math.floor(d.now() / 1000));
-  if (!p || typeof p.uid !== "string" || typeof p.email !== "string") return null;
-  if (!(await d.userExists(p.uid))) return null;
-  return { userId: p.uid, email: p.email };
+  if (!p || p.typ !== "session" || typeof p.uid !== "string" || typeof p.email !== "string") return null;
+  const state: UserSessionState | null = deps.userState
+    ? await deps.userState(p.uid)
+    : deps.userExists
+      ? (await deps.userExists(p.uid))
+        ? { email: p.email, authValidAfter: null }
+        : null
+      : await defaultUserState(p.uid);
+  if (!state) return null;
+  if (state.authValidAfter && (typeof p.iat === "number" ? p.iat : 0) * 1000 < state.authValidAfter.getTime()) return null;
+  return { userId: p.uid, email: state.email };
 }
 
 /** Where /oauth/authorize sends a logged-out user. `returnTo` must be a same-origin path. */
@@ -69,8 +95,9 @@ export function connectStartPath(returnTo: string): string {
 /** Set-Cookie header value that logs `user` in. */
 export function createSessionCookie(user: SessionUser, deps: Partial<SessionDeps> = {}): string {
   const d = { ...defaultDeps, ...deps };
-  const exp = Math.floor(d.now() / 1000) + SESSION_TTL_SECONDS;
-  const value = signPayload({ uid: user.userId, email: user.email, exp } satisfies SessionPayload, d.secret());
+  const iat = Math.floor(d.now() / 1000);
+  const exp = iat + SESSION_TTL_SECONDS;
+  const value = signPayload({ typ: "session", uid: user.userId, email: user.email, iat, exp } satisfies SessionPayload, d.secret());
   return serializeCookie(SESSION_COOKIE, value, { maxAgeSeconds: SESSION_TTL_SECONDS, secure: isProduction() });
 }
 

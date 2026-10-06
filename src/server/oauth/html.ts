@@ -54,6 +54,7 @@ export function consentPage(view: ConsentView, extraHeaders: Record<string, stri
 <p><strong>${escapeHtml(view.clientName)}</strong> wants to read your Google Analytics and Search Console data via ${escapeHtml(
     view.brandName,
   )}.</p>
+<p class="muted">This application registered itself automatically, and the name above is chosen by the application, not verified by us. Only approve if you just started connecting it yourself.</p>
 <p class="muted">Access is read-only. You are signed in as ${escapeHtml(view.email)}. After you choose, you will be sent back to ${escapeHtml(
     view.redirectHost,
   )}.</p>

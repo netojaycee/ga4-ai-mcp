@@ -27,6 +27,7 @@ export function makeUser(over: Partial<User> = {}): User {
     plan: "paid",
     trialEndsAt: null,
     notes: null,
+    authValidAfter: null,
     createdAt: NOW,
     lastSeenAt: null,
     ...over,

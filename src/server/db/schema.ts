@@ -29,6 +29,8 @@ export const users = pgTable(
     notes: text("notes"),
     createdAt: createdAt(),
     lastSeenAt: ts("last_seen_at"),
+    /** Browser sessions issued before this instant are rejected (set by suspend / revoke-sessions). */
+    authValidAfter: ts("auth_valid_after"),
   },
   (t) => [uniqueIndex("users_google_sub_uq").on(t.googleSub), index("users_email_idx").on(t.email)],
 );
@@ -148,6 +150,17 @@ export const anonRateCounters = pgTable(
   },
   (t) => [primaryKey({ columns: [t.bucket, t.windowKey] })],
 );
+
+/**
+ * Remembers plan state across "Delete my data" so deleting and re-signing-in cannot reset a trial or lift a suspension.
+ * Keyed by a one-way hash of the Google account id; no email or name. Purged after a year.
+ */
+export const deletedAccounts = pgTable("deleted_accounts", {
+  subHash: text("sub_hash").primaryKey(),
+  plan: text("plan", { enum: PLANS }).notNull(),
+  trialEndsAt: ts("trial_ends_at"),
+  deletedAt: ts("deleted_at").notNull().defaultNow(),
+});
 
 export const auditLog = pgTable(
   "audit_log",

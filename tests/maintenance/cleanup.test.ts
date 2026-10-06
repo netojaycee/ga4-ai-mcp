@@ -12,6 +12,8 @@ function recorder() {
     deleteDeadTokens: rec("tokens", 2),
     deleteDeadAuthCodes: rec("codes", 3),
     deleteOldUsageEvents: rec("usage", 4),
+    deleteOldAuditLog: rec("audit", 7),
+    deleteOldTombstones: rec("tomb", 8),
     deleteOldRateCounters: rec("rate", 5),
     deleteOldAnonCounters: rec("anon", 6),
   };
@@ -23,7 +25,9 @@ describe("runCleanup", () => {
   it("computes retention cutoffs and returns counts only", async () => {
     const { store, calls } = recorder();
     const s = await runCleanup(store, now);
-    expect(s).toEqual({ unusedClients: 1, deadTokens: 2, deadAuthCodes: 3, usageEvents: 4, rateCounters: 5, anonCounters: 6 });
+    expect(s).toEqual({ unusedClients: 1, deadTokens: 2, deadAuthCodes: 3, usageEvents: 4, auditLog: 7, tombstones: 8, rateCounters: 5, anonCounters: 6 });
+    expect((calls.audit[0] as Date).toISOString()).toBe("2025-10-06T12:34:56.000Z"); // 365 days
+    expect((calls.tomb[0] as Date).toISOString()).toBe("2025-10-06T12:34:56.000Z"); // 365 days
     expect((calls.usage[0] as Date).toISOString()).toBe("2026-07-08T12:34:56.000Z"); // 90 days
     expect((calls.tokens[0] as Date).toISOString()).toBe("2026-09-06T12:34:56.000Z"); // 30 days
     expect((calls.clients[0] as Date).toISOString()).toBe("2026-09-29T12:34:56.000Z"); // 7 days
@@ -38,7 +42,8 @@ describe("runCleanup", () => {
     await runCleanup(
       {
         deleteUnusedClients: mk("clients"), deleteDeadTokens: mk("tokens"), deleteDeadAuthCodes: mk("codes"),
-        deleteOldUsageEvents: mk("usage"), deleteOldRateCounters: mk("rate"), deleteOldAnonCounters: mk("anon"),
+        deleteOldUsageEvents: mk("usage"), deleteOldAuditLog: mk("audit"), deleteOldTombstones: mk("tomb"),
+        deleteOldRateCounters: mk("rate"), deleteOldAnonCounters: mk("anon"),
       },
       now,
     );
