@@ -46,7 +46,7 @@ If the code and ARCHITECTURE.md disagree, fix one of them in the same change and
 - dev: `npm run dev` (http://localhost:3000)
 - test: `npm test` (Vitest, `tests/**`); watch: `npm run test:watch`
 - typecheck: `npm run typecheck`; lint: `npm run lint`; build: `npm run build`
-- db: `npm run db:generate` (after editing `src/server/db/schema.ts`), `npm run db:migrate` (applies to the Neon DB in `.env.local`)
+- db: `npm run db:generate` (after editing `src/server/db/schema.ts`), `npm run db:migrate` (applies to the **dev** Neon branch from `.env.development.local`), `npm run db:migrate:prod` (**production**, explicit opt-in; always prints the target host first). `next dev` also uses the dev branch. Production data lives on Neon branch `main`; never point local work at it. Do not use plain `vercel env pull` to "fix" env: it rewrites `.env.local` with production values (dev overrides live in `.env.development.local`).
 - Before any commit: lint + typecheck + test + build must pass.
 - Git: work on a branch; pushing `main` deploys to production (Vercel Git integration), pushing a branch makes a preview.
 - MCP Inspector: `TBD` (task 3.6)

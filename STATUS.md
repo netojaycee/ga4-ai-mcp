@@ -165,11 +165,12 @@ _None yet._
 - [x] Browser-verified on production as the owner: /admin (users, kill switch card), /admin/usage (percentile SQL OK), /admin/audit, /admin/grants, /admin/invites, /admin/users/[id] all render with real data; anonymous visitors are redirected to sign-in; cron route returns 401 without the secret; team-grant create + revoke round trip works.
 - [ ] Still not exercised live: plan/trial edits, suspend/unsuspend, revoke sessions, kill-switch toggle, invite email sending (needs a test address), cron run, grant applied at a real first sign-in with a second Google account.
 - [ ] Confirm Vercel Hobby cron limits (once a day is believed allowed) and that the cron runs; send one test invite to an address the owner controls.
-- [ ] Separate dev and prod databases (Neon branch) before real users.
+- [x] Separate dev and prod databases: Neon branch `dev` (schema only, never auto-deletes); `.env.development.local`; `db:migrate` = dev, `db:migrate:prod` = prod. Verified: local app writes to dev, prod untouched.
 - [x] Merged to `main` with owner OK (production deploy).
 
 ## Log (newest first)
 
+- 2026-10-06: Separated dev from prod DB (Neon branch `dev`, schema-only). Local env now `.env.development.local`; drizzle config is dev-by-default with explicit `db:migrate:prod`. Proved: a local `POST /oauth/register` landed in dev only. Note: Neon's default branch auto-delete is 1 day, set to Never.
 - 2026-10-06: Dropped task 3.5 (search/fetch shims) after reading OpenAI docs. Allowed Cursor's exact native redirect URI in DCR (+ tests that near-miss URIs and other schemes are still rejected). Added retention cleanup job + cron (`vercel.json` now has 2 crons). 295 tests pass.
 - 2026-10-06: Phase 5 deployed to production and browser-verified (see follow-ups). A fake pre-approval `grant-test@example.invalid` was created and removed through the UI to test the write path; audit and usage views show the owner's own test traffic only.
 - 2026-10-06: **Phase 5 integrated** (agents E and F; branch `integration-phase-5`): admin guard (session user + `ADMIN_EMAILS`), users list/detail, revoke/suspend, kill switch (`app_settings`), team grants (`plan_grants`, applied at first sign-in), usage and audit views, invites + Resend mailer, daily trial-notice cron (`vercel.json`, `CRON_SECRET`). Merged cleanly except STATUS.md (duplicated Phase 5 rows reconciled). 290 tests pass; lint, typecheck and build clean. Migration 0002 (2 additive tables) applied to Neon; `CRON_SECRET` set in Vercel production. Fixed `.gitignore` so `.env.example` is tracked (a later `.env*` line had overridden the `!.env.example` exception).

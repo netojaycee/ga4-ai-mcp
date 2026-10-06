@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:migrate:prod": "DB_TARGET=prod drizzle-kit migrate"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
