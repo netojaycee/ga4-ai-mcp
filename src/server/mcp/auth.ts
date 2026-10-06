@@ -1,8 +1,9 @@
 import type { McpAuthenticator } from "@/server/auth/context";
+import { authenticateBearer } from "@/server/oauth/authenticate";
 
 /**
  * DEV STUB. Never authenticates in production; elsewhere accepts `x-dev-user-id: <users.id>` for local testing.
- * The OAuth work (task 4.7) replaces this: change the one `authenticateMcp` export below.
+ * Kept for local testing only; production uses the real OAuth bearer validation below.
  */
 export const devStubAuthenticator: McpAuthenticator = async (req) => {
   if (process.env.NODE_ENV === "production") return null;
@@ -11,7 +12,11 @@ export const devStubAuthenticator: McpAuthenticator = async (req) => {
   return { userId, clientId: "dev-stub", scope: "" };
 };
 
-/** The authenticator /mcp uses. Swap this single line for the real token validator. */
-export const authenticateMcp: McpAuthenticator = devStubAuthenticator;
+/**
+ * The authenticator /mcp uses: real OAuth bearer tokens first; outside production a dev header is also
+ * accepted so the endpoint can be exercised without a full login.
+ */
+export const authenticateMcp: McpAuthenticator = async (req) =>
+  (await authenticateBearer(req)) ?? (await devStubAuthenticator(req));
 
 export default authenticateMcp;

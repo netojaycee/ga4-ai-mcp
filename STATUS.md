@@ -60,9 +60,9 @@ Kind: `HUMAN` (needs owner) · `CODE` · `DOC` · `TEST`
 
 | ID | Task | Kind | Deps | Files | Status | Owner | Claimed | Evidence | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| 3.1 | MCP endpoint `/mcp` (Streamable HTTP, stateless) with a stub auth that resolves a dev user | CODE | 1.1 | `src/app/api/mcp/`, `src/server/mcp/` | TODO | | | | Verify SDK API in installed docs |
+| 3.1 | MCP endpoint `/mcp` (Streamable HTTP, stateless) with a stub auth that resolves a dev user | CODE | 1.1 | `src/app/api/mcp/`, `src/server/mcp/` | DONE | agent-B | 2026-10-06 | `/mcp` handler `src/app/mcp/route.ts`; live smoke test: initialize OK, tools/list returns 9 read-only tools, 401 + WWW-Authenticate without auth | Stub auth replaced by real validation via task 4.7 (stub still works outside production only) |
 | 3.2 | Tool wrapper: auth → entitlement → rate/quota → Google token → call → error map → usage log | CODE | 3.1, 2.4 | `src/server/mcp/wrapper.ts` | DONE | agent-B |2026-10-05 23:55 UTC | `server/mcp/wrapper.ts`, `tools/account.ts`; `tests/mcp/wrapper.test.ts` (8 tests) | |
-| 3.3 | Register all tools from ARCHITECTURE §6 with precise descriptions and schemas | CODE | 3.2 | `src/server/mcp/tools/` | TODO | | | | |
+| 3.3 | Register all tools from ARCHITECTURE §6 with precise descriptions and schemas | CODE | 3.2 | `src/server/mcp/tools/` | DONE | claude | 2026-10-06 | `src/server/mcp/tools/google.ts` registers 8 GA4/GSC tools; `tests/mcp/integration.test.ts`; live tools/list shows all 9 | All tools read-only and run through `runTool`. Not yet exercised with real Google data (needs a connected account, see 3.6) |
 | 3.4 | `plans/entitlements.ts` + Postgres rate counters and daily quotas | CODE | 1.3, 1.4 | `src/server/plans/`, `src/server/security/ratelimit.ts` | DONE | agent-B |2026-10-05 23:55 UTC | `tests/plans/{entitlements,ratelimit}.test.ts`; full suite 46 tests, lint/typecheck/build pass | |
 | 3.5 | Decide and implement `search`/`fetch` shims if ChatGPT requires them | CODE | 3.3 | `src/server/mcp/tools/` | TODO | | | | Check OpenAI docs first |
 | 3.6 | Test with MCP Inspector against local server | TEST | 3.3 | `docs/clients.md` | TODO | | | | |
@@ -74,21 +74,12 @@ Kind: `HUMAN` (needs owner) · `CODE` · `DOC` · `TEST`
 | 4.1 | Discovery: protected-resource and authorization-server metadata; `/mcp` 401 + `WWW-Authenticate` | CODE | 3.1 | `src/app/.well-known/`, `src/server/oauth/` | DONE | agent-C | 2026-10-06T00:00Z | build lists both /.well-known routes; tests/oauth/register-metadata.test.ts | Verify against current MCP auth spec |
 | 4.2 | Dynamic Client Registration `/oauth/register` | CODE | 1.4 | `src/app/api/oauth/register/` | DONE | agent-C | 2026-10-06T00:00Z | tests/oauth/register-metadata.test.ts (redirect/size/method validation) | |
 | 4.3 | `/oauth/authorize` with PKCE S256, `resource` binding, redirect-URI exact match | CODE | 4.2 | `src/app/api/oauth/authorize/` | DONE | agent-C | 2026-10-06T00:00Z | tests/oauth/authorize.test.ts | |
-| 4.4 | Google connect flow `/connect/google/start` + callback: upsert user, store encrypted refresh token, CSRF/state | CODE | 1.5, 0.5 | `src/app/api/connect/google/` | TODO | | | | |
+| 4.4 | Google connect flow `/connect/google/start` + callback: upsert user, store encrypted refresh token, CSRF/state | CODE | 1.5, 0.5 | `src/app/api/connect/google/` | DONE | agent-D | 2026-10-05 23:56 UTC | `tests/connect/{flow,returnTo,session}.test.ts`: state/CSRF, return_to, scopes, refresh token, access_denied, trial calc, upsert; lint/typecheck/test(61)/build pass | Own fetch-based Google client (no google-auth-library); ID token iss/aud/exp checked, signature not verified because it comes direct from the token endpoint. Not exercised against real Google |
 | 4.5 | Consent/confirm page for the AI client | CODE | 4.3, 4.4 | `src/app/(site)/consent/` | DONE | agent-C | 2026-10-06T00:00Z | tests/oauth/authorize.test.ts (consent page, CSRF, escaping, headers) | |
 | 4.6 | `/oauth/token`: code exchange, our access + rotating refresh tokens, reuse detection; `/oauth/revoke` | CODE | 4.3 | `src/app/api/oauth/token/` | DONE | agent-C | 2026-10-06T00:00Z | tests/oauth/token.test.ts (PKCE, replay, rotation, reuse, revoke) | |
-| 4.7 | Replace stub auth in `/mcp` with real token validation (hash, audience, expiry, revoked) | CODE | 4.6, 3.2 | `src/server/mcp/auth.ts` | DONE | agent-C | 2026-10-06T00:00Z | src/server/oauth/authenticate.ts; tests/oauth/token.test.ts (not yet wired into /mcp) | |
-| 4.8 | Disconnect flow: revoke at Google, delete token, revoke our tokens, delete data on request | CODE | 4.4 | `src/server/google/`, `src/app/(site)/account/` | TODO | | | | |
-| 4.9 | Security tests: PKCE failures, code reuse, redirect mismatch, audience mismatch, token confusion | TEST | 4.7 | `tests/oauth/` | DOING | agent-C | 2026-10-06T00:00Z | tests/oauth/** (65 tests total pass); oauth part only | |
-| 4.1 | Discovery: protected-resource and authorization-server metadata; `/mcp` 401 + `WWW-Authenticate` | CODE | 3.1 | `src/app/.well-known/`, `src/server/oauth/` | TODO | | | | Verify against current MCP auth spec |
-| 4.2 | Dynamic Client Registration `/oauth/register` | CODE | 1.4 | `src/app/api/oauth/register/` | TODO | | | | |
-| 4.3 | `/oauth/authorize` with PKCE S256, `resource` binding, redirect-URI exact match | CODE | 4.2 | `src/app/api/oauth/authorize/` | TODO | | | | |
-| 4.4 | Google connect flow `/connect/google/start` + callback: upsert user, store encrypted refresh token, CSRF/state | CODE | 1.5, 0.5 | `src/app/api/connect/google/` | DONE | agent-D | 2026-10-05 23:56 UTC | `tests/connect/{flow,returnTo,session}.test.ts`: state/CSRF, return_to, scopes, refresh token, access_denied, trial calc, upsert; lint/typecheck/test(61)/build pass | Own fetch-based Google client (no google-auth-library); ID token iss/aud/exp checked, signature not verified because it comes direct from the token endpoint. Not exercised against real Google |
-| 4.5 | Consent/confirm page for the AI client | CODE | 4.3, 4.4 | `src/app/(site)/consent/` | TODO | | | | |
-| 4.6 | `/oauth/token`: code exchange, our access + rotating refresh tokens, reuse detection; `/oauth/revoke` | CODE | 4.3 | `src/app/api/oauth/token/` | TODO | | | | |
-| 4.7 | Replace stub auth in `/mcp` with real token validation (hash, audience, expiry, revoked) | CODE | 4.6, 3.2 | `src/server/mcp/auth.ts` | TODO | | | | |
+| 4.7 | Replace stub auth in `/mcp` with real token validation (hash, audience, expiry, revoked) | CODE | 4.6, 3.2 | `src/server/mcp/auth.ts` | DONE | agent-C+claude | 2026-10-06 | `authenticateBearer` wired into `/mcp` via `src/server/mcp/auth.ts`; `tests/mcp/auth.test.ts` covers composition and production guard | Dev header fallback works only when NODE_ENV is not production |
 | 4.8 | Disconnect flow: revoke at Google, delete token, revoke our tokens, delete data on request | CODE | 4.4 | `src/server/google/`, `src/app/(site)/account/` | DONE | agent-D | 2026-10-05 23:56 UTC | `tests/connect/account.test.ts`: disconnect revokes at Google + oauth_tokens + audit, delete cascades, CSRF/origin rejects | Page `/account` (`src/app/account/`), POST `/api/connect/account/{disconnect,delete}`. Connection row is deleted on disconnect |
-| 4.9 | Security tests: PKCE failures, code reuse, redirect mismatch, audience mismatch, token confusion | TEST | 4.7 | `tests/oauth/` | TODO | | | | |
+| 4.9 | Security tests: PKCE failures, code reuse, redirect mismatch, audience mismatch, token confusion | TEST | 4.7 | `tests/oauth/` | DOING | agent-C | 2026-10-06T00:00Z | tests/oauth/** (65 tests total pass); oauth part only | |
 
 ## Phase 5: Admin dashboard, plans, trials
 
@@ -150,13 +141,32 @@ Record result per client: connected? OAuth ok? tools listed? sample call ok? qui
 
 | 2026-10-05 | PoC base URL `https://insights.johnedeh.com`; Google Cloud project owned by `netojaycee@gmail.com` | Owner choice |
 | 2026-10-06 | Google data layer uses plain `fetch` (token refresh + REST) with Zod-parsed responses; no `google-auth-library`/`googleapis` | Smaller bundle, trivial mocking, no extra deps. Access tokens cached in process memory only (until expiry minus 60s) |
+| 2026-10-06 | Google APIs called with plain `fetch` (no `googleapis`/`google-auth-library`); Zod input schemas double as MCP tool schemas | Smaller install, trivial to mock (agent A) |
+| 2026-10-06 | OAuth server follows MCP authorization revision 2026-07-28; Dynamic Client Registration only (no Client ID Metadata Documents yet) | Works with ChatGPT/Claude today; revisit if clients prefer CIMD (agent C) |
+| 2026-10-06 | MCP endpoint at `/mcp` via `src/app/mcp/route.ts`; stateless Streamable HTTP; CORS `*` (bearer-only, no cookies) | Agent B |
+| 2026-10-06 | Google ID token: issuer/audience/expiry checked, signature not (received directly from Google's token endpoint over TLS) | Agent D; consider adding signature check (cheap) |
+| 2026-10-06 | Disconnect deletes the `google_connections` row; "Delete my data" cascades the user | Matches "delete encrypted token" in ARCHITECTURE §7 |
+| 2026-10-06 | Integration branch merges agent worktree branches; STATUS.md log conflicts resolved by keeping both sides; table rows reconciled by hand | Parallel agents editing one file duplicates rows; the integrator must reconcile |
 
 ## Blockers
 
 _None yet._
 
+## Follow-ups (from the Phase 2-4 review)
+
+- [ ] **Rate-limit `POST /oauth/register`** (open registration writes to the DB with no limit). Do before exposing publicly.
+- [ ] Add an index on `oauth_tokens.parent_hash` (chain revocation does one query per hop).
+- [ ] Decide whether to allow private-use redirect schemes (e.g. `cursor://`) in DCR; Cursor may need them (task 6.4).
+- [ ] Verify the Google ID token signature (JWKS) in the connect callback.
+- [ ] Smoke-test real Google calls (token refresh, GA4, Search Console) with a connected account; endpoint shapes were written from API knowledge, not live responses (task 3.6).
+- [ ] Test Postgres paths against Neon: rate limiter, entitlement lookups, Drizzle upserts (`onConflictDoUpdate`), OAuth repo.
+- [ ] Task 4.9 remains DOING: MCP-side token-confusion tests (e.g. an access token for another resource is rejected at `/mcp`).
+- [ ] Separate dev and prod databases (Neon branch) before real users.
+- [ ] Merge to `main` only after owner OK; `main` deploys to production.
+
 ## Log (newest first)
 
+- 2026-10-06: **Integration** of agents A, B, C, D on branch `integration-phase-2-4`: merged cleanly except STATUS.md; reconciled duplicated Phase 4 rows. Added task 3.3 (8 Google tools) and wired real OAuth auth into `/mcp` (4.7). Fixed `typecheck` script (`next typegen` first) and ESLint ignores for `.claude/` worktrees. 202 tests pass; lint, typecheck, build clean. Live smoke test against real Neon: discovery, DCR (valid + hostile redirect URIs rejected), 401 + WWW-Authenticate, MCP initialize/tools/list (9 read-only tools), logged-out authorize redirect to Google start, Google authorize URL params, open-redirect sanitization. Test client row deleted afterwards.
 - 2026-10-06: agent-A finished 2.1 to 2.5 (src/server/google/*, tests/google/*). Not wired into MCP yet (Phase 3).
 - agent-B: 3.1/3.2/3.4 DONE. Route is `src/app/mcp/route.ts` (not api/mcp); swap auth by editing `authenticateMcp` in `src/server/mcp/auth.ts`; add tools in `src/server/mcp/tools/index.ts` via `defineTool`. Decision: trial with null `trialEndsAt` is open-ended; daily and per-minute overages both return `rate_limited`. `npm run typecheck` needs a prior `next build`/typegen for `LayoutProps`.
 
