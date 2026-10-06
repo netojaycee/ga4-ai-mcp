@@ -158,14 +158,15 @@ _None yet._
 - [x] Index on `oauth_tokens.parent_hash` (migration 0001).
 - [ ] Decide whether to allow private-use redirect schemes (e.g. `cursor://`) in DCR; Cursor may need them (task 6.4).
 - [ ] Verify the Google ID token signature (JWKS) in the connect callback.
-- [ ] Smoke-test real Google calls (token refresh, GA4, Search Console) with a connected account; endpoint shapes were written from API knowledge, not live responses (task 3.6).
-- [ ] Test Postgres paths against Neon: rate limiter, entitlement lookups, Drizzle upserts (`onConflictDoUpdate`), OAuth repo.
+- [x] Smoke-tested real Google calls on production with the owner's account: token refresh, GA4 (list, metadata, report, realtime, paging, bad-field error), Search Console (sites, analytics, sitemaps, URL inspection, no-access error). All correct.
+- [x] Postgres paths exercised live on Neon: rate limiter (trial 20/min hit and reported), entitlement/user lookup, usage events, Drizzle upserts via real Google sign-in, bearer-token lookup. Still untested live: refresh-token rotation and code exchange (need a real OAuth client, task 6.x).
 - [ ] Task 4.9 remains DOING: MCP-side token-confusion tests (e.g. an access token for another resource is rejected at `/mcp`).
 - [ ] Separate dev and prod databases (Neon branch) before real users.
 - [x] Merged to `main` with owner OK (production deploy).
 
 ## Log (newest first)
 
+- 2026-10-06: **First end-to-end proof on production.** Owner signed in at /account (user + active connection created, trial to 2026-10-20). A 10-minute test bearer token was inserted directly in the DB for the owner's user (bypassing the OAuth handshake, deleted after each run) and all 8 Google tools + account_status were run against `https://insights.johnedeh.com/mcp` with real data. Findings: all correct; trial per-minute limit (20) triggered and reported friendly. Not yet proven: the real OAuth handshake from an AI client (Claude/ChatGPT) incl. DCR -> authorize -> token -> refresh.
 - 2026-10-06: **Bug found in production smoke test**: Vercel `env pull` re-wrapped `.env.local` values in quotes and I copied `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` to prod with literal quotes (Google URL showed `client_id=%22...%22`). Re-set both unquoted; `parseEnv` now rejects quote-wrapped values (named, not printed) with tests. Added landing, privacy and terms pages (task 7.2) because the Google consent screen links to them and they 404'd. New optional env `SUPPORT_EMAIL`.
 - 2026-10-06: Added registration throttle (`src/server/security/anon-ratelimit.ts`, table `anon_rate_counters`, migration 0001 applied to Neon, also adds `oauth_tokens_parent_idx`). 207 tests pass. Live test against dev server: 12 requests -> 10x201, 2x429; test rows and counters deleted. Merging integration branch to `main`.
 - 2026-10-06: **Integration** of agents A, B, C, D on branch `integration-phase-2-4`: merged cleanly except STATUS.md; reconciled duplicated Phase 4 rows. Added task 3.3 (8 Google tools) and wired real OAuth auth into `/mcp` (4.7). Fixed `typecheck` script (`next typegen` first) and ESLint ignores for `.claude/` worktrees. 202 tests pass; lint, typecheck, build clean. Live smoke test against real Neon: discovery, DCR (valid + hostile redirect URIs rejected), 401 + WWW-Authenticate, MCP initialize/tools/list (9 read-only tools), logged-out authorize redirect to Google start, Google authorize URL params, open-redirect sanitization. Test client row deleted afterwards.
