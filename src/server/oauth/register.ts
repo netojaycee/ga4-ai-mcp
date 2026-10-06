@@ -35,6 +35,12 @@ function randomClientId(deps: OAuthDeps): string {
 }
 
 export async function handleRegister(deps: OAuthDeps, req: Request): Promise<Response> {
+  const limit = await deps.limitRegistration?.(req);
+  if (limit && !limit.allowed) {
+    const res = oauthError(429, "temporarily_unavailable", "Too many registrations. Try again later.");
+    res.headers.set("Retry-After", String(limit.retryAfterSeconds));
+    return res;
+  }
   const text = await readCappedText(req, OAUTH.maxBodyBytes);
   if (text === null) return oauthError(413, "invalid_client_metadata", "Request body too large.");
   let json: unknown;

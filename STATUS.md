@@ -154,18 +154,19 @@ _None yet._
 
 ## Follow-ups (from the Phase 2-4 review)
 
-- [ ] **Rate-limit `POST /oauth/register`** (open registration writes to the DB with no limit). Do before exposing publicly.
-- [ ] Add an index on `oauth_tokens.parent_hash` (chain revocation does one query per hop).
+- [x] **Rate-limit `POST /oauth/register`**: 10/hour per hashed IP + 300/day global, DB-backed (`anon_rate_counters`). Verified live: 10 x 201 then 429 with Retry-After.
+- [x] Index on `oauth_tokens.parent_hash` (migration 0001).
 - [ ] Decide whether to allow private-use redirect schemes (e.g. `cursor://`) in DCR; Cursor may need them (task 6.4).
 - [ ] Verify the Google ID token signature (JWKS) in the connect callback.
 - [ ] Smoke-test real Google calls (token refresh, GA4, Search Console) with a connected account; endpoint shapes were written from API knowledge, not live responses (task 3.6).
 - [ ] Test Postgres paths against Neon: rate limiter, entitlement lookups, Drizzle upserts (`onConflictDoUpdate`), OAuth repo.
 - [ ] Task 4.9 remains DOING: MCP-side token-confusion tests (e.g. an access token for another resource is rejected at `/mcp`).
 - [ ] Separate dev and prod databases (Neon branch) before real users.
-- [ ] Merge to `main` only after owner OK; `main` deploys to production.
+- [x] Merged to `main` with owner OK (production deploy).
 
 ## Log (newest first)
 
+- 2026-10-06: Added registration throttle (`src/server/security/anon-ratelimit.ts`, table `anon_rate_counters`, migration 0001 applied to Neon, also adds `oauth_tokens_parent_idx`). 207 tests pass. Live test against dev server: 12 requests -> 10x201, 2x429; test rows and counters deleted. Merging integration branch to `main`.
 - 2026-10-06: **Integration** of agents A, B, C, D on branch `integration-phase-2-4`: merged cleanly except STATUS.md; reconciled duplicated Phase 4 rows. Added task 3.3 (8 Google tools) and wired real OAuth auth into `/mcp` (4.7). Fixed `typecheck` script (`next typegen` first) and ESLint ignores for `.claude/` worktrees. 202 tests pass; lint, typecheck, build clean. Live smoke test against real Neon: discovery, DCR (valid + hostile redirect URIs rejected), 401 + WWW-Authenticate, MCP initialize/tools/list (9 read-only tools), logged-out authorize redirect to Google start, Google authorize URL params, open-redirect sanitization. Test client row deleted afterwards.
 - 2026-10-06: agent-A finished 2.1 to 2.5 (src/server/google/*, tests/google/*). Not wired into MCP yet (Phase 3).
 - agent-B: 3.1/3.2/3.4 DONE. Route is `src/app/mcp/route.ts` (not api/mcp); swap auth by editing `authenticateMcp` in `src/server/mcp/auth.ts`; add tools in `src/server/mcp/tools/index.ts` via `defineTool`. Decision: trial with null `trialEndsAt` is open-ended; daily and per-minute overages both return `rate_limited`. `npm run typecheck` needs a prior `next build`/typegen for `LayoutProps`.

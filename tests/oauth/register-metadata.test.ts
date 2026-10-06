@@ -69,3 +69,14 @@ describe("dynamic client registration", () => {
     expect((await res.json()).token_endpoint_auth_method).toBe("none");
   });
 });
+
+describe("registration throttle", () => {
+  it("returns 429 with Retry-After when the limiter blocks, and creates nothing", async () => {
+    const h = makeHarness();
+    h.deps.limitRegistration = async () => ({ allowed: false, retryAfterSeconds: 123 });
+    const res = await handleRegister(h.deps, reg({ redirect_uris: ["https://a.example/cb"] }));
+    expect(res.status).toBe(429);
+    expect(res.headers.get("retry-after")).toBe("123");
+    expect(h.clients.size).toBe(0);
+  });
+});

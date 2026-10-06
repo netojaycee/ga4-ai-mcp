@@ -100,7 +100,11 @@ export const oauthTokens = pgTable(
     parentHash: text("parent_hash"),
     createdAt: createdAt(),
   },
-  (t) => [index("oauth_tokens_user_idx").on(t.userId), index("oauth_tokens_expires_idx").on(t.expiresAt)],
+  (t) => [
+    index("oauth_tokens_user_idx").on(t.userId),
+    index("oauth_tokens_expires_idx").on(t.expiresAt),
+    index("oauth_tokens_parent_idx").on(t.parentHash),
+  ],
 );
 
 export const usageEvents = pgTable(
@@ -132,6 +136,17 @@ export const rateCounters = pgTable(
     count: integer("count").notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.userId, t.windowKey] })],
+);
+
+/** Rate counters for callers with no user yet (e.g. dynamic client registration). Keyed by a hashed bucket, never a raw IP. */
+export const anonRateCounters = pgTable(
+  "anon_rate_counters",
+  {
+    bucket: text("bucket").notNull(),
+    windowKey: text("window_key").notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.bucket, t.windowKey] })],
 );
 
 export const auditLog = pgTable(
