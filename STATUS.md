@@ -99,12 +99,12 @@ Record result per client: connected? OAuth ok? tools listed? sample call ok? qui
 | ID | Client | Kind | Deps | Status | Owner | Evidence | Notes |
 |---|---|---|---|---|---|---|---|
 | 6.1 | ChatGPT (Plus, Developer Mode custom connector) | HUMAN+TEST | 4.7 | TODO | | | |
-| 6.2 | Claude (web/desktop custom connector, Max) | HUMAN+TEST | 4.7 | TODO | | | |
+| 6.2 | Claude (web/desktop custom connector, Max) | HUMAN+TEST | 4.7 | DONE | claude+owner | Real chat on claude.ai used the connector: DCR, consent, token, tools/list, list properties + 2 GA4 reports; answer had real data (2,149,398 sessions last 7d for Punch Newspapers - GA4) | Per-tool permission prompts are Claude's. See `docs/clients.md` |
 | 6.3 | Claude Code (`claude mcp add --transport http`) | TEST | 4.7 | TODO | | | |
 | 6.4 | Cursor | TEST | 4.7 | TODO | | | |
 | 6.5 | VS Code (Copilot agent mode) | TEST | 4.7 | TODO | | | |
 | 6.6 | Windsurf / Gemini CLI / others (best effort) | TEST | 4.7 | TODO | | | |
-| 6.7 | Write `docs/clients.md`: per-client connect steps and known quirks | DOC | 6.1-6.6 | TODO | | | |
+| 6.7 | Write `docs/clients.md`: per-client connect steps and known quirks | DOC | 6.1-6.6 | DOING | | | |
 
 ## Phase 7: Hardening and docs
 
@@ -161,11 +161,13 @@ _None yet._
 - [x] Smoke-tested real Google calls on production with the owner's account: token refresh, GA4 (list, metadata, report, realtime, paging, bad-field error), Search Console (sites, analytics, sitemaps, URL inspection, no-access error). All correct.
 - [x] Postgres paths exercised live on Neon: rate limiter (trial 20/min hit and reported), entitlement/user lookup, usage events, Drizzle upserts via real Google sign-in, bearer-token lookup. Still untested live: refresh-token rotation and code exchange (need a real OAuth client, task 6.x).
 - [ ] Task 4.9 remains DOING: MCP-side token-confusion tests (e.g. an access token for another resource is rejected at `/mcp`).
+- [ ] Periodically delete OAuth clients with no tokens and older than N days (each Claude Connect click registers a new client).
 - [ ] Separate dev and prod databases (Neon branch) before real users.
 - [x] Merged to `main` with owner OK (production deploy).
 
 ## Log (newest first)
 
+- 2026-10-06: **Claude end-to-end verified.** Connector added in claude.ai (auto-detected OAuth + DCR), Approve (after the Origin fix) issued 1 used auth code + access (1h) and refresh (30d) tokens bound to our `/mcp`; a real chat made 3 tool calls and answered with live GA4 data. Wrote `docs/clients.md` (Claude verified; others TODO). Claude registers a new OAuth client on every Connect click, so unused client rows accumulate (see follow-ups).
 - 2026-10-06: **Bug found by the first real client (Claude)**: clicking Approve on the consent page failed with "Cross-origin request rejected." Cause: consent page sent `Referrer-Policy: no-referrer`, so browsers send `Origin: null` on the form POST and our Origin check rejected it. Unit tests used fake requests and could not catch browser behaviour. Fix: policy `same-origin`; Origin check also accepts `null` only with `Sec-Fetch-Site: same-origin` (CSRF cookie check unchanged). Regression tests added. Lesson: real-browser/client tests are required for the OAuth flow (task 6.x).
 - 2026-10-06: **First end-to-end proof on production.** Owner signed in at /account (user + active connection created, trial to 2026-10-20). A 10-minute test bearer token was inserted directly in the DB for the owner's user (bypassing the OAuth handshake, deleted after each run) and all 8 Google tools + account_status were run against `https://insights.johnedeh.com/mcp` with real data. Findings: all correct; trial per-minute limit (20) triggered and reported friendly. Not yet proven: the real OAuth handshake from an AI client (Claude/ChatGPT) incl. DCR -> authorize -> token -> refresh.
 - 2026-10-06: **Bug found in production smoke test**: Vercel `env pull` re-wrapped `.env.local` values in quotes and I copied `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` to prod with literal quotes (Google URL showed `client_id=%22...%22`). Re-set both unquoted; `parseEnv` now rejects quote-wrapped values (named, not printed) with tests. Added landing, privacy and terms pages (task 7.2) because the Google consent screen links to them and they 404'd. New optional env `SUPPORT_EMAIL`.
