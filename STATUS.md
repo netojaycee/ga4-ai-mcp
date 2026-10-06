@@ -111,7 +111,7 @@ Record result per client: connected? OAuth ok? tools listed? sample call ok? qui
 | ID | Task | Kind | Deps | Files | Status | Owner | Claimed | Evidence | Notes |
 |---|---|---|---|---|---|---|---|---|---|
 | 7.1 | Security review pass (secrets, logs, headers, CSRF, rate limits, SSRF none, dependency audit) | TEST | P4, P5 | n/a | TODO | | | | |
-| 7.2 | Landing page + privacy/terms **stubs** + setup guide (lawyer owns final text) | CODE | 1.3 | `src/app/(site)/` | TODO | | | | |
+| 7.2 | Landing page + privacy/terms **stubs** + setup guide (lawyer owns final text) | CODE | 1.3 | `src/app/(site)/` | DONE | claude | 2026-10-06 | `/`, `/privacy`, `/terms` render (200) locally and in build; production check after deploy | Content reflects actual data handling (no analytics stored, encrypted refresh token, Limited Use). **Owner's lawyer must review wording before launch.** Uses optional `SUPPORT_EMAIL` env |
 | 7.3 | Working `Dockerfile` (Azure portability) and verify build runs outside Vercel | CODE | P5 | `Dockerfile` | TODO | | | | |
 | 7.4 | `docs/migration.md` from ARCHITECTURE §12 checklist, `docs/runbook.md` (incidents, key rotation, revoke-all) | DOC | n/a | `docs/` | TODO | | | | |
 | 7.5 | Deploy to Vercel production URL; end-to-end smoke test from ChatGPT and Claude | TEST | P6 | n/a | TODO | | | | |
@@ -166,6 +166,7 @@ _None yet._
 
 ## Log (newest first)
 
+- 2026-10-06: **Bug found in production smoke test**: Vercel `env pull` re-wrapped `.env.local` values in quotes and I copied `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` to prod with literal quotes (Google URL showed `client_id=%22...%22`). Re-set both unquoted; `parseEnv` now rejects quote-wrapped values (named, not printed) with tests. Added landing, privacy and terms pages (task 7.2) because the Google consent screen links to them and they 404'd. New optional env `SUPPORT_EMAIL`.
 - 2026-10-06: Added registration throttle (`src/server/security/anon-ratelimit.ts`, table `anon_rate_counters`, migration 0001 applied to Neon, also adds `oauth_tokens_parent_idx`). 207 tests pass. Live test against dev server: 12 requests -> 10x201, 2x429; test rows and counters deleted. Merging integration branch to `main`.
 - 2026-10-06: **Integration** of agents A, B, C, D on branch `integration-phase-2-4`: merged cleanly except STATUS.md; reconciled duplicated Phase 4 rows. Added task 3.3 (8 Google tools) and wired real OAuth auth into `/mcp` (4.7). Fixed `typecheck` script (`next typegen` first) and ESLint ignores for `.claude/` worktrees. 202 tests pass; lint, typecheck, build clean. Live smoke test against real Neon: discovery, DCR (valid + hostile redirect URIs rejected), 401 + WWW-Authenticate, MCP initialize/tools/list (9 read-only tools), logged-out authorize redirect to Google start, Google authorize URL params, open-redirect sanitization. Test client row deleted afterwards.
 - 2026-10-06: agent-A finished 2.1 to 2.5 (src/server/google/*, tests/google/*). Not wired into MCP yet (Phase 3).

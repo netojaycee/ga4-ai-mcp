@@ -40,6 +40,7 @@ const schema = z
     ADMIN_EMAILS: emailList,
     RESEND_API_KEY: z.string().optional(),
     MAIL_FROM: z.string().optional(),
+    SUPPORT_EMAIL: z.email().optional(),
     BRAND_NAME: z.string().min(1).default("Insights Connector"),
     TRIAL_DAYS: z.coerce.number().int().min(0).max(365).default(14),
   })
@@ -50,7 +51,19 @@ const schema = z
 
 export type Env = z.infer<typeof schema>;
 
+/** Tools like `vercel env pull` write KEY="value"; copying that verbatim bakes literal quotes into the value. */
+const wrappedInQuotes = (v: string) => /^(["']).*\1$/.test(v.trim());
+
 export function parseEnv(source: Record<string, string | undefined>): Env {
+  const quoted = Object.keys(schema.shape).filter((k) => {
+    const v = source[k];
+    return v !== undefined && wrappedInQuotes(v);
+  });
+  if (quoted.length) {
+    throw new Error(
+      `Invalid environment configuration:\n${quoted.map((k) => `  - ${k}: value is wrapped in literal quote characters; remove them`).join("\n")}`,
+    );
+  }
   const result = schema.safeParse(source);
   if (!result.success) {
     // Report variable names and reasons only, never values.

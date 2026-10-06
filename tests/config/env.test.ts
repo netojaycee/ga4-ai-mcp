@@ -42,3 +42,14 @@ describe("parseEnv", () => {
     }
   });
 });
+
+describe("quote-wrapped values", () => {
+  it("rejects values copied from `vercel env pull` style KEY=\"value\" lines, naming the variable", () => {
+    expect(() => parseEnv({ ...good(), GOOGLE_CLIENT_ID: '"abc.apps.googleusercontent.com"' })).toThrow(/GOOGLE_CLIENT_ID.*quote/);
+    expect(() => parseEnv({ ...good(), GOOGLE_CLIENT_SECRET: "'s3cret'" })).toThrow(/GOOGLE_CLIENT_SECRET/);
+  });
+
+  it("does not reject values that merely contain a quote character", () => {
+    expect(() => parseEnv({ ...good(), BRAND_NAME: 'Bob\'s "Insights"' })).not.toThrow();
+  });
+});

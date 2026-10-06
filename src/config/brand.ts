@@ -12,6 +12,9 @@ export const brandStatic = {
   mcpPath: "/mcp",
 } as const;
 
+/** For static contexts (metadata) where full env validation must not run at build time. */
+export const brandNameFallback = () => process.env.BRAND_NAME?.trim() || "Insights Connector";
+
 export function brand() {
   const e = env();
   return {
@@ -22,5 +25,6 @@ export function brand() {
     privacyUrl: `${e.PUBLIC_BASE_URL}${brandStatic.privacyPath}`,
     termsUrl: `${e.PUBLIC_BASE_URL}${brandStatic.termsPath}`,
     mailFrom: e.MAIL_FROM,
+    supportEmail: e.SUPPORT_EMAIL,
   };
 }
