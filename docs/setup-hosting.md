@@ -14,7 +14,7 @@ Done 2026-10-06.
 ## Environment variables
 - Local: `.env.local` (gitignored). Pulled DB vars with `vercel env pull`. Google client ID/secret and dev secrets set locally.
 - Vercel **production**: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (sensitive), `TOKEN_ENC_KEYS` (sensitive, **different from local**), `TOKEN_ENC_CURRENT`, `SESSION_SECRET` (sensitive, **different from local**), `BRAND_NAME`, `TRIAL_DAYS`, `PUBLIC_BASE_URL=https://insights.johnedeh.com`, plus Neon vars from the integration.
-- Not yet set anywhere: `ADMIN_EMAILS`, `RESEND_API_KEY`, `MAIL_FROM`.
+- Also set in production: `ADMIN_EMAILS`, `RESEND_API_KEY` (sensitive), `MAIL_FROM`, `SUPPORT_EMAIL`, `CRON_SECRET` (sensitive).
 
 ## Databases (separated 2026-10-06)
 - Neon project `insights-mcp-db` (id `patient-union-05531403`, org managed through the Vercel integration).

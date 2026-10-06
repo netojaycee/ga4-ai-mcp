@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.vercel
+.claude
+.agents
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+tests
+docs

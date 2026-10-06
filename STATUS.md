@@ -112,8 +112,8 @@ Record result per client: connected? OAuth ok? tools listed? sample call ok? qui
 |---|---|---|---|---|---|---|---|---|---|
 | 7.1 | Security review pass (secrets, logs, headers, CSRF, rate limits, SSRF none, dependency audit) | TEST | P4, P5 | n/a | TODO | | | | |
 | 7.2 | Landing page + privacy/terms **stubs** + setup guide (lawyer owns final text) | CODE | 1.3 | `src/app/(site)/` | DONE | claude | 2026-10-06 | `/`, `/privacy`, `/terms` render (200) locally and in build; production check after deploy | Content reflects actual data handling (no analytics stored, encrypted refresh token, Limited Use). **Owner's lawyer must review wording before launch.** Uses optional `SUPPORT_EMAIL` env |
-| 7.3 | Working `Dockerfile` (Azure portability) and verify build runs outside Vercel | CODE | P5 | `Dockerfile` | TODO | | | | |
-| 7.4 | `docs/migration.md` from ARCHITECTURE §12 checklist, `docs/runbook.md` (incidents, key rotation, revoke-all) | DOC | n/a | `docs/` | TODO | | | | |
+| 7.3 | Working `Dockerfile` (Azure portability) and verify build runs outside Vercel | CODE | P5 | `Dockerfile` | DONE | claude | 2026-10-06 | `Dockerfile` + `.dockerignore`; `BUILD_STANDALONE=1` build succeeds with no env; standalone `server.js` run in production mode served pages, static assets, 401 on /mcp, dev header refused | **Docker is not installed on this machine, so the image itself was never built.** Cron needs the platform scheduler in a container |
+| 7.4 | `docs/migration.md` from ARCHITECTURE §12 checklist, `docs/runbook.md` (incidents, key rotation, revoke-all) | DOC | n/a | `docs/` | DONE | claude | 2026-10-06 | `docs/runbook.md`, `docs/migration.md` | Procedures not yet drilled (e.g. key rotation, rollback) |
 | 7.5 | Deploy to Vercel production URL; end-to-end smoke test from ChatGPT and Claude | TEST | P6 | n/a | TODO | | | | |
 
 ## Phase 8: Pre-launch (later, mostly non-technical)
@@ -170,6 +170,7 @@ _None yet._
 
 ## Log (newest first)
 
+- 2026-10-06: Added Dockerfile (opt-in standalone output), runbook and migration guide (7.3, 7.4). Started an independent read-only security review (7.1); findings pending.
 - 2026-10-06: Separated dev from prod DB (Neon branch `dev`, schema-only). Local env now `.env.development.local`; drizzle config is dev-by-default with explicit `db:migrate:prod`. Proved: a local `POST /oauth/register` landed in dev only. Note: Neon's default branch auto-delete is 1 day, set to Never.
 - 2026-10-06: Dropped task 3.5 (search/fetch shims) after reading OpenAI docs. Allowed Cursor's exact native redirect URI in DCR (+ tests that near-miss URIs and other schemes are still rejected). Added retention cleanup job + cron (`vercel.json` now has 2 crons). 295 tests pass.
 - 2026-10-06: Phase 5 deployed to production and browser-verified (see follow-ups). A fake pre-approval `grant-test@example.invalid` was created and removed through the UI to test the write path; audit and usage views show the owner's own test traffic only.
