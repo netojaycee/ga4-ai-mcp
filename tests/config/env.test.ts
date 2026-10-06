@@ -52,4 +52,10 @@ describe("quote-wrapped values", () => {
   it("does not reject values that merely contain a quote character", () => {
     expect(() => parseEnv({ ...good(), BRAND_NAME: 'Bob\'s "Insights"' })).not.toThrow();
   });
+
+  it("treats CRON_SECRET as optional but requires 16+ characters when set", () => {
+    expect(parseEnv(good()).CRON_SECRET).toBeUndefined();
+    expect(parseEnv({ ...good(), CRON_SECRET: "c".repeat(16) }).CRON_SECRET).toBe("c".repeat(16));
+    expect(() => parseEnv({ ...good(), CRON_SECRET: "short" })).toThrow(/CRON_SECRET/);
+  });
 });

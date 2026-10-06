@@ -41,6 +41,7 @@ const schema = z
     RESEND_API_KEY: z.string().optional(),
     MAIL_FROM: z.string().optional(),
     SUPPORT_EMAIL: z.email().optional(),
+    CRON_SECRET: z.string().min(16).optional(),
     BRAND_NAME: z.string().min(1).default("Insights Connector"),
     TRIAL_DAYS: z.coerce.number().int().min(0).max(365).default(14),
   })
