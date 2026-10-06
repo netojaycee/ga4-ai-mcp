@@ -157,9 +157,20 @@ export async function handleAuthorizeGet(deps: OAuthDeps, req: Request): Promise
   );
 }
 
-export async function handleAuthorizePost(deps: OAuthDeps, req: Request): Promise<Response> {
+/**
+ * CSRF layer 1 (the double-submit cookie is layer 2). A browser sends our exact origin on a same-origin form POST.
+ * Some privacy settings and referrer policies turn that into the literal "null"; accept that only when the browser
+ * also says the request is same-origin. A foreign or sandboxed origin is always rejected.
+ */
+export function isSameOriginPost(req: Request, baseUrl: string): boolean {
   const origin = req.headers.get("origin");
-  if (origin !== null && origin !== new URL(deps.baseUrl).origin) {
+  if (origin === null) return true;
+  if (origin === new URL(baseUrl).origin) return true;
+  return origin === "null" && req.headers.get("sec-fetch-site") === "same-origin";
+}
+
+export async function handleAuthorizePost(deps: OAuthDeps, req: Request): Promise<Response> {
+  if (!isSameOriginPost(req, deps.baseUrl)) {
     return errorPage("Cross-origin request rejected.", 403);
   }
   const ct = req.headers.get("content-type") ?? "";

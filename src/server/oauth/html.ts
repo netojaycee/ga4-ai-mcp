@@ -13,7 +13,8 @@ export const HTML_HEADERS: Record<string, string> = {
   "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'",
   "X-Frame-Options": "DENY",
   "X-Content-Type-Options": "nosniff",
-  "Referrer-Policy": "no-referrer",
+  // not "no-referrer": that makes browsers send `Origin: null` on the consent form POST
+  "Referrer-Policy": "same-origin",
   "Cache-Control": "no-store",
   Pragma: "no-cache",
 };

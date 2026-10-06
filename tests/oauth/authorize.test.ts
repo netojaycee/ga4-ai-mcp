@@ -116,6 +116,23 @@ describe("authorize: consent POST", () => {
     expect(h.codes.size).toBe(0);
   });
 
+  it("accepts `Origin: null` only when the browser also reports same-origin (no-referrer style form POSTs)", async () => {
+    const { csrf, fields } = await consent();
+    const cookie = `oauth_csrf=${csrf}`;
+    expect((await post(fields, { origin: "null", "sec-fetch-site": "same-origin", cookie })).status).toBe(303);
+    const extras: Record<string, string>[] = [{ "sec-fetch-site": "cross-site" }, { "sec-fetch-site": "same-site" }, {}];
+    for (const extra of extras) {
+      const c = await consent();
+      const r = await post(c.fields, { origin: "null", cookie: `oauth_csrf=${c.csrf}`, ...extra });
+      expect(r.status).toBe(403);
+    }
+  });
+
+  it("the consent page does not use Referrer-Policy: no-referrer (it would make the POST carry Origin: null)", async () => {
+    const page = await get(authorizeUrl());
+    expect(page.headers.get("referrer-policy")).toBe("same-origin");
+  });
+
   it("approve issues a hashed, 5 minute, bound code and redirects with state", async () => {
     const { csrf, fields } = await consent();
     const r = await post(fields, { origin: BASE, cookie: `oauth_csrf=${csrf}` });
