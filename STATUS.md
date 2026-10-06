@@ -156,12 +156,12 @@ _None yet._
 
 - [x] **Rate-limit `POST /oauth/register`**: 10/hour per hashed IP + 300/day global, DB-backed (`anon_rate_counters`). Verified live: 10 x 201 then 429 with Retry-After.
 - [x] Index on `oauth_tokens.parent_hash` (migration 0001).
-- [ ] Decide whether to allow private-use redirect schemes (e.g. `cursor://`) in DCR; Cursor may need them (task 6.4).
+- [x] Cursor: DCR now accepts the exact native redirect `cursor://anysphere.cursor-mcp/oauth/callback` (allowlist in `register.ts`, exact match only). VS Code's `http://127.0.0.1:33418` and `https://vscode.dev/redirect` already passed. Not yet tested with a real Cursor.
 - [ ] Verify the Google ID token signature (JWKS) in the connect callback.
 - [x] Smoke-tested real Google calls on production with the owner's account: token refresh, GA4 (list, metadata, report, realtime, paging, bad-field error), Search Console (sites, analytics, sitemaps, URL inspection, no-access error). All correct.
 - [x] Postgres paths exercised live on Neon: rate limiter (trial 20/min hit and reported), entitlement/user lookup, usage events, Drizzle upserts via real Google sign-in, bearer-token lookup. Still untested live: refresh-token rotation and code exchange (need a real OAuth client, task 6.x).
 - [ ] Task 4.9 remains DOING: MCP-side token-confusion tests (e.g. an access token for another resource is rejected at `/mcp`).
-- [ ] Periodically delete OAuth clients with no tokens and older than N days (each Claude Connect click registers a new client).
+- [x] Retention/cleanup cron `/api/cron/cleanup` (daily 03:00 UTC): unused OAuth clients > 7d, dead tokens > 30d past expiry, expired codes, usage events > 90d, old rate counters. SQL verified against Neon with synthetic stale rows.
 - [x] Browser-verified on production as the owner: /admin (users, kill switch card), /admin/usage (percentile SQL OK), /admin/audit, /admin/grants, /admin/invites, /admin/users/[id] all render with real data; anonymous visitors are redirected to sign-in; cron route returns 401 without the secret; team-grant create + revoke round trip works.
 - [ ] Still not exercised live: plan/trial edits, suspend/unsuspend, revoke sessions, kill-switch toggle, invite email sending (needs a test address), cron run, grant applied at a real first sign-in with a second Google account.
 - [ ] Confirm Vercel Hobby cron limits (once a day is believed allowed) and that the cron runs; send one test invite to an address the owner controls.
@@ -170,6 +170,7 @@ _None yet._
 
 ## Log (newest first)
 
+- 2026-10-06: Dropped task 3.5 (search/fetch shims) after reading OpenAI docs. Allowed Cursor's exact native redirect URI in DCR (+ tests that near-miss URIs and other schemes are still rejected). Added retention cleanup job + cron (`vercel.json` now has 2 crons). 295 tests pass.
 - 2026-10-06: Phase 5 deployed to production and browser-verified (see follow-ups). A fake pre-approval `grant-test@example.invalid` was created and removed through the UI to test the write path; audit and usage views show the owner's own test traffic only.
 - 2026-10-06: **Phase 5 integrated** (agents E and F; branch `integration-phase-5`): admin guard (session user + `ADMIN_EMAILS`), users list/detail, revoke/suspend, kill switch (`app_settings`), team grants (`plan_grants`, applied at first sign-in), usage and audit views, invites + Resend mailer, daily trial-notice cron (`vercel.json`, `CRON_SECRET`). Merged cleanly except STATUS.md (duplicated Phase 5 rows reconciled). 290 tests pass; lint, typecheck and build clean. Migration 0002 (2 additive tables) applied to Neon; `CRON_SECRET` set in Vercel production. Fixed `.gitignore` so `.env.example` is tracked (a later `.env*` line had overridden the `!.env.example` exception).
 - 2026-10-06: agent-E finished 5.1, 5.2, 5.3, 5.6. Owner must apply migration `drizzle/0002_*` (app_settings, plan_grants) before the kill switch or grants work; wrapper fails open until then. Added no-store/noindex headers in `next.config.ts`; `disconnectUser` in connect/account.ts gained optional actor and returns its result.

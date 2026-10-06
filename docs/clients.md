@@ -24,7 +24,9 @@ Plus plan -> Settings -> Apps & Connectors -> Advanced -> Developer mode, then C
 `claude mcp add --transport http insights https://insights.johnedeh.com/mcp`, then `/mcp` to authenticate.
 
 ## Cursor / VS Code / Windsurf / others — TODO (tasks 6.4 to 6.6)
-Add a remote HTTP MCP server with the URL. Cursor may require private-use redirect schemes (e.g. `cursor://`); our DCR currently only allows https and loopback http (see STATUS follow-ups).
+Add a remote HTTP MCP server with the URL.
+- **Cursor** registers `cursor://anysphere.cursor-mcp/oauth/callback` plus an https redirect; our registration accepts exactly that custom URI (allowlist in `src/server/oauth/register.ts`). Not yet tested with a real Cursor.
+- **VS Code** uses `http://127.0.0.1:33418` and `https://vscode.dev/redirect`, both accepted. Not yet tested with a real VS Code.
 
 ## Troubleshooting
 - "Cross-origin request rejected" on Approve: fixed 2026-10-06 (consent page used `Referrer-Policy: no-referrer`).

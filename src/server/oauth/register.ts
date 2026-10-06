@@ -5,8 +5,16 @@ import type { OAuthDeps } from "./deps";
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
-/** https, or http on loopback only. No fragments, wildcards, or userinfo. */
+/**
+ * Native-app redirects that use a private-use scheme (RFC 8252 7.1). Exact string match only, never a scheme-wide
+ * allowance: any app on the user's machine can claim a scheme, so each entry is a deliberate, reviewed exception.
+ * PKCE (mandatory here) is what keeps an intercepted code useless.
+ */
+export const ALLOWED_NATIVE_REDIRECTS: ReadonlySet<string> = new Set(["cursor://anysphere.cursor-mcp/oauth/callback"]);
+
+/** https, or http on loopback, or an exact allowlisted native redirect. No fragments, wildcards, or userinfo. */
 export function isValidRedirectUri(raw: string): boolean {
+  if (ALLOWED_NATIVE_REDIRECTS.has(raw)) return true;
   if (raw.length > OAUTH.maxUriLength || raw.includes("#") || raw.includes("*")) return false;
   if (/[\u0000-\u001f\u007f\s\\]/.test(raw)) return false;
   let u: URL;

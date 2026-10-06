@@ -80,3 +80,28 @@ describe("registration throttle", () => {
     expect(h.clients.size).toBe(0);
   });
 });
+
+describe("native redirect allowlist", () => {
+  it("accepts Cursor's exact native redirect alongside an https one in one registration", async () => {
+    const h = makeHarness();
+    const res = await handleRegister(
+      h.deps,
+      reg({ client_name: "Cursor", redirect_uris: ["cursor://anysphere.cursor-mcp/oauth/callback", "https://www.cursor.com/agents/mcp/oauth/callback"] }),
+    );
+    expect(res.status).toBe(201);
+  });
+
+  it("still rejects other custom schemes and near-miss variants of the allowed one", async () => {
+    for (const uri of [
+      "cursor://evil.example/oauth/callback",
+      "cursor://anysphere.cursor-mcp/oauth/callback/extra",
+      "cursor://anysphere.cursor-mcp/oauth/callback?x=1",
+      "cursor://anysphere.cursor-mcp",
+      "vscode://anything",
+      "myapp://cb",
+    ]) {
+      const h = makeHarness();
+      expect((await handleRegister(h.deps, reg({ redirect_uris: [uri] }))).status, uri).toBe(400);
+    }
+  });
+});
