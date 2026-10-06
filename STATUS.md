@@ -80,6 +80,15 @@ Kind: `HUMAN` (needs owner) · `CODE` · `DOC` · `TEST`
 | 4.7 | Replace stub auth in `/mcp` with real token validation (hash, audience, expiry, revoked) | CODE | 4.6, 3.2 | `src/server/mcp/auth.ts` | DONE | agent-C | 2026-10-06T00:00Z | src/server/oauth/authenticate.ts; tests/oauth/token.test.ts (not yet wired into /mcp) | |
 | 4.8 | Disconnect flow: revoke at Google, delete token, revoke our tokens, delete data on request | CODE | 4.4 | `src/server/google/`, `src/app/(site)/account/` | TODO | | | | |
 | 4.9 | Security tests: PKCE failures, code reuse, redirect mismatch, audience mismatch, token confusion | TEST | 4.7 | `tests/oauth/` | DOING | agent-C | 2026-10-06T00:00Z | tests/oauth/** (65 tests total pass); oauth part only | |
+| 4.1 | Discovery: protected-resource and authorization-server metadata; `/mcp` 401 + `WWW-Authenticate` | CODE | 3.1 | `src/app/.well-known/`, `src/server/oauth/` | TODO | | | | Verify against current MCP auth spec |
+| 4.2 | Dynamic Client Registration `/oauth/register` | CODE | 1.4 | `src/app/api/oauth/register/` | TODO | | | | |
+| 4.3 | `/oauth/authorize` with PKCE S256, `resource` binding, redirect-URI exact match | CODE | 4.2 | `src/app/api/oauth/authorize/` | TODO | | | | |
+| 4.4 | Google connect flow `/connect/google/start` + callback: upsert user, store encrypted refresh token, CSRF/state | CODE | 1.5, 0.5 | `src/app/api/connect/google/` | DONE | agent-D | 2026-10-05 23:56 UTC | `tests/connect/{flow,returnTo,session}.test.ts`: state/CSRF, return_to, scopes, refresh token, access_denied, trial calc, upsert; lint/typecheck/test(61)/build pass | Own fetch-based Google client (no google-auth-library); ID token iss/aud/exp checked, signature not verified because it comes direct from the token endpoint. Not exercised against real Google |
+| 4.5 | Consent/confirm page for the AI client | CODE | 4.3, 4.4 | `src/app/(site)/consent/` | TODO | | | | |
+| 4.6 | `/oauth/token`: code exchange, our access + rotating refresh tokens, reuse detection; `/oauth/revoke` | CODE | 4.3 | `src/app/api/oauth/token/` | TODO | | | | |
+| 4.7 | Replace stub auth in `/mcp` with real token validation (hash, audience, expiry, revoked) | CODE | 4.6, 3.2 | `src/server/mcp/auth.ts` | TODO | | | | |
+| 4.8 | Disconnect flow: revoke at Google, delete token, revoke our tokens, delete data on request | CODE | 4.4 | `src/server/google/`, `src/app/(site)/account/` | DONE | agent-D | 2026-10-05 23:56 UTC | `tests/connect/account.test.ts`: disconnect revokes at Google + oauth_tokens + audit, delete cascades, CSRF/origin rejects | Page `/account` (`src/app/account/`), POST `/api/connect/account/{disconnect,delete}`. Connection row is deleted on disconnect |
+| 4.9 | Security tests: PKCE failures, code reuse, redirect mismatch, audience mismatch, token confusion | TEST | 4.7 | `tests/oauth/` | TODO | | | | |
 
 ## Phase 5: Admin dashboard, plans, trials
 
@@ -155,6 +164,8 @@ _None yet._
 
 - 2026-10-06: agent-C done 4.1-4.3, 4.5-4.7 and oauth tests (4.9 left DOING for MCP-side tests after wiring). Gaps: no registration rate limit; custom-scheme redirect URIs rejected per brief; CIMD not implemented (DCR only).
 - 2026-10-06: agent-C claimed 4.1, 4.2, 4.3, 4.5, 4.6, 4.7, 4.9 (oauth part). Following MCP authorization spec revision 2026-07-28 (RFC 9728/8414/7591/7636/8707/9207/7009).
+- 2026-10-06: agent-D finished 4.4 and 4.8. session.ts is now real (cookie `ga_session`; added createSessionCookie, clearSessionCookie, getSessionUserFromCookieHeader, csrfTokenFor, verifyCsrf). Decision: no google-auth-library dependency.
+- 2026-10-05 23:56 UTC: agent-D claimed 4.4 and 4.8 (Google connect flow, first-party session, account page/disconnect).
 - 2026-10-06: Phase 1 done (1.2 to 1.6) on branch `phase-1-foundations`. New deps: zod 4, drizzle-orm 0.45, pg 8, vitest 5, drizzle-kit, tsx; `@types/node` bumped to ^24 (vitest 5 needs it). Migration applied to the shared Neon DB. Unpooled URL var is `DATABASE_URL_UNPOOLED`.
 - 2026-10-06: Tasks 0.1, 0.6, 0.9 done. `ADMIN_EMAILS=netojaycee@gmail.com` set locally and in Vercel prod. GitHub repo `netojaycee/ga4-ai-mcp` created by owner, pushed, and connected to Vercel project (`vercel git connect`) so pushes to `main` deploy to production. Phase 0 complete.
 - 2026-10-06: Tasks 0.7, 0.8, 1.1 done. Placeholder deployed to production (first and only deploy so far). Vercel Neon integration auto-installed vendor skills in `.agents/skills/` and `skills-lock.json`; guard added in CLAUDE.md. Task 0.6 done. Pending owner items: 0.9 (Resend: browser is not logged in; owner must log in and create the API key), `ADMIN_EMAILS` value, and removing `note.txt`.
