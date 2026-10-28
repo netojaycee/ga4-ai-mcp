@@ -99,6 +99,46 @@ export default function Home() {
         </p>
       </section>
 
+      <section aria-labelledby="google-data" className="card mt-14 space-y-3">
+        <h2 id="google-data" className="text-2xl font-bold tracking-tight">
+          How {b.name} uses your Google data
+        </h2>
+        <p className="text-muted">
+          {b.name} is a connector: it lets an AI assistant that <em>you</em> choose (ChatGPT, Claude, Cursor and
+          similar) read your own Google Analytics 4, Google Search Console and, if you opt in, YouTube channel data, so
+          you can ask questions about it in plain language. It requests read-only access, only for the accounts you sign
+          in with, and only when you ask a question.
+        </p>
+        <ul className="list-disc space-y-1 pl-6 text-muted">
+          <li>We never change, create or delete anything in your Google accounts.</li>
+          <li>We do not store your analytics, Search Console or YouTube data, and we never sell it or use it for advertising.</li>
+          <li>We do not use it to train AI or machine-learning models.</li>
+          <li>
+            {b.name} does not generate, edit or distribute images or video, and cannot be used to create
+            non-consensual or intimate imagery.
+          </li>
+        </ul>
+        <p className="text-muted">
+          {b.name}&rsquo;s use and transfer of information received from Google APIs adheres to the{" "}
+          <a className="text-accent underline underline-offset-4" href="https://developers.google.com/terms/api-services-user-data-policy">
+            Google API Services User Data Policy
+          </a>
+          , including the Limited Use requirements. When you connect YouTube you also agree to the{" "}
+          <a className="text-accent underline underline-offset-4" href="https://www.youtube.com/t/terms">
+            YouTube Terms of Service
+          </a>
+          . Read our{" "}
+          <Link href="/privacy" className="text-accent underline underline-offset-4">
+            privacy policy
+          </Link>{" "}
+          and{" "}
+          <Link href="/terms" className="text-accent underline underline-offset-4">
+            terms of service
+          </Link>
+          .
+        </p>
+      </section>
+
       <section aria-labelledby="control" className="mt-14">
         <h2 id="control" className="text-center text-2xl font-bold tracking-tight">
           You stay in control
