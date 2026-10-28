@@ -45,7 +45,7 @@ export class FakeRepo implements ConnectRepository {
     const u = this.users.get(userId);
     if (!u) return null;
     const c = this.connections.get(userId);
-    return { userId, email: u.email, plan: u.plan as AccountView["plan"], trialEndsAt: u.trialEndsAt, googleEmail: c?.googleEmail ?? null, connectionStatus: c ? "active" : null };
+    return { userId, email: u.email, plan: u.plan as AccountView["plan"], trialEndsAt: u.trialEndsAt, googleEmail: c?.googleEmail ?? null, connectionStatus: c ? "active" : null, scopes: c?.scopes ?? [] };
   }
   async getConnectionTokenEnc(userId: string) {
     return this.connections.get(userId)?.refreshTokenEnc ?? null;

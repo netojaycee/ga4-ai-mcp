@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { STATE_COOKIE, handleCallback, handleStart } from "@/server/connect/flow";
-import { GOOGLE_SCOPE_ANALYTICS, GOOGLE_SCOPE_SEARCH_CONSOLE, parseIdToken } from "@/server/connect/google";
+import {
+  GOOGLE_SCOPE_ANALYTICS,
+  GOOGLE_SCOPE_SEARCH_CONSOLE,
+  GOOGLE_SCOPE_YOUTUBE,
+  GOOGLE_SCOPE_YOUTUBE_ANALYTICS,
+  parseIdToken,
+} from "@/server/connect/google";
 import { SESSION_COOKIE } from "@/server/auth/session";
 import { BASE, CLIENT_ID, FakeGoogle, FakeRepo, NOW, cookieFrom, idToken, makeDeps } from "./fakes";
 
-function begin(deps = makeDeps(), returnTo = "/oauth/authorize?x=1") {
-  const res = handleStart(new Request(`${BASE}/api/connect/google/start?return_to=${encodeURIComponent(returnTo)}`), deps);
+function begin(deps = makeDeps(), returnTo = "/oauth/authorize?x=1", extra = "") {
+  const res = handleStart(new Request(`${BASE}/api/connect/google/start?return_to=${encodeURIComponent(returnTo)}${extra}`), deps);
   const loc = new URL(res.headers.get("location")!);
   return { res, loc, state: loc.searchParams.get("state")!, cookie: cookieFrom(res, STATE_COOKIE) };
 }
@@ -20,7 +26,7 @@ describe("handleStart", () => {
     expect(loc.origin + loc.pathname).toBe("https://accounts.google.com/o/oauth2/v2/auth");
     const p = loc.searchParams;
     expect(p.get("access_type")).toBe("offline");
-    expect(p.get("prompt")).toBe("consent");
+    expect(p.get("prompt")).toBe("select_account consent");
     expect(p.get("include_granted_scopes")).toBe("true");
     expect(p.get("code_challenge_method")).toBe("S256");
     expect(p.get("code_challenge")).toBeTruthy();
@@ -34,6 +40,42 @@ describe("handleStart", () => {
     expect(setCookie).toMatch(/SameSite=Lax/);
     expect(setCookie).toMatch(/Secure/);
     expect(cookie.length).toBeGreaterThan(20);
+  });
+});
+
+describe("optional YouTube scopes (incremental consent)", () => {
+  const YT = [GOOGLE_SCOPE_YOUTUBE, GOOGLE_SCOPE_YOUTUBE_ANALYTICS];
+
+  it("a plain sign-in never asks for YouTube", () => {
+    expect(begin().loc.searchParams.get("scope")).not.toContain("youtube");
+  });
+
+  it("add=youtube adds exactly the two read-only YouTube scopes", () => {
+    const scopes = begin(makeDeps(), "/account", "&add=youtube").loc.searchParams.get("scope")!.split(" ");
+    expect(scopes).toEqual(expect.arrayContaining([GOOGLE_SCOPE_ANALYTICS, GOOGLE_SCOPE_SEARCH_CONSOLE, ...YT]));
+    expect(scopes.every((s) => !/auth\/youtube(?!\.readonly)|yt-analytics(?!\.readonly)/.test(s))).toBe(true);
+  });
+
+  it("unknown add values are ignored, never forwarded to Google", () => {
+    const scope = begin(makeDeps(), "/account", "&add=drive&add=https://evil.example/scope").loc.searchParams.get("scope")!;
+    expect(scope).not.toMatch(/drive|evil/);
+  });
+
+  it("requires the YouTube scopes to be granted when they were requested, and stores them when they are", async () => {
+    const repo = new FakeRepo();
+    const google = new FakeGoogle();
+    const deps = makeDeps(repo, google);
+    const r1 = begin(deps, "/account", "&add=youtube");
+    const denied = await callback(deps, `code=a&state=${r1.state}`, r1.cookie); // FakeGoogle grants only the base scopes
+    expect(denied.status).toBe(400);
+    expect(await denied.text()).toContain("YouTube");
+    expect(repo.connections.size).toBe(0);
+
+    google.tokens = { ...google.tokens, scope: [google.tokens.scope, ...YT].join(" ") };
+    const r2 = begin(deps, "/account", "&add=youtube");
+    const ok = await callback(deps, `code=b&state=${r2.state}`, r2.cookie);
+    expect(ok.status).toBe(302);
+    expect([...repo.connections.values()][0].scopes).toEqual(expect.arrayContaining(YT));
   });
 });
 

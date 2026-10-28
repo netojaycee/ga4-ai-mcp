@@ -1,7 +1,7 @@
 import { vi } from "vitest";
 import type { GoogleAuth } from "@/server/google/auth";
 
-export const fakeAuth: GoogleAuth = { getAccessToken: async () => "test-access-token" };
+export const fakeAuth: GoogleAuth = { getAccessToken: async () => "test-access-token", scopes: [] };
 
 export interface Call {
   url: string;

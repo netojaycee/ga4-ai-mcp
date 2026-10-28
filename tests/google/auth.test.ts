@@ -175,3 +175,35 @@ describe("createFetchTokenClient", () => {
       expect((err as Error).message).not.toContain("server_error");
     }));
 });
+
+describe("getGoogleAuth: account isolation", () => {
+  it("two users sharing one cache each get an access token from their own refresh token", async () => {
+    const rows: Record<string, ConnectionRow> = {
+      alice: { id: "c-alice", refreshTokenEnc: encrypt("refresh-alice", keys, "1"), status: "active" },
+      bob: { id: "c-bob", refreshTokenEnc: encrypt("refresh-bob", keys, "1"), status: "active" },
+    };
+    const store: ConnectionStore = {
+      findByUserId: vi.fn(async (id: string) => rows[id]),
+      markRefreshed: vi.fn(async () => {}),
+      markError: vi.fn(async () => {}),
+    };
+    const map = new Map<string, { token: string; expiresAt: number }>();
+    const cache: AccessTokenCache = {
+      get: (k) => map.get(k),
+      set: (k, v) => void map.set(k, v),
+      delete: (k) => void map.delete(k),
+    };
+    const refresh = vi.fn(async (rt: string) => ({ accessToken: `access-for-${rt}`, expiresInSec: 3600 }));
+    const deps = { store, tokens: { refresh }, codec: codec("1"), cache, now: () => 1_000_000 };
+
+    const alice = await getGoogleAuth("alice", deps);
+    const bob = await getGoogleAuth("bob", deps);
+    expect(await alice.getAccessToken()).toBe("access-for-refresh-alice");
+    expect(await bob.getAccessToken()).toBe("access-for-refresh-bob");
+    // cached path must not hand one user's token to the other
+    expect(await (await getGoogleAuth("alice", deps)).getAccessToken()).toBe("access-for-refresh-alice");
+    expect(await (await getGoogleAuth("bob", deps)).getAccessToken()).toBe("access-for-refresh-bob");
+    expect(store.markRefreshed).toHaveBeenCalledWith("c-alice", expect.anything());
+    expect(store.markRefreshed).toHaveBeenCalledWith("c-bob", expect.anything());
+  });
+});

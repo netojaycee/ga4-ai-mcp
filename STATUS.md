@@ -4,7 +4,9 @@
 >
 > **Where we are:** the product works end to end. A real Claude chat connects to `https://insights.johnedeh.com/mcp` through OAuth and reads the owner's real GA4 and Search Console data (read-only). Admin dashboard, team grants, trials, invites, retention cleanup, runbook and an independent security review are done and deployed. 320 tests pass. Phases 0-5 and 7 are complete; Phase 6 (client matrix) and Phase 8 (launch) remain.
 >
-> **Prove-it status:** Claude: verified. Everything else: not yet tried live (ChatGPT, Claude Code, Cursor, VS Code, others).
+> **Prove-it status:** Claude and ChatGPT: verified. Everything else: not yet tried live (Claude Code, Cursor, VS Code, others).
+>
+> **Direction (2026-10-28):** add social connections per user (YouTube first, then Facebook/Instagram). Start with Phase 9 task 9.0 (prove that two different users only see their own accounts), below.
 >
 > ### Next steps, in order
 > 1. **Refresh-token check (5 minutes, do first).** The first Claude access token (issued 01:07 UTC on 2026-10-06) lives 1 hour. After it expired, use the connector in a new Claude chat, then confirm in the `oauth_tokens` table (prod) that a new chained access+refresh pair exists and the old refresh token is revoked. This is the only untested part of the OAuth flow.
@@ -122,7 +124,7 @@ Record result per client: connected? OAuth ok? tools listed? sample call ok? qui
 
 | ID | Client | Kind | Deps | Status | Owner | Evidence | Notes |
 |---|---|---|---|---|---|---|---|
-| 6.1 | ChatGPT (Plus, Developer Mode custom connector) | HUMAN+TEST | 4.7 | TODO | | | |
+| 6.1 | ChatGPT (custom MCP server via Plugins) | HUMAN+TEST | 4.7 | DONE | claude+owner | 2026-10-06 via Claude in Chrome: Add -> Create custom MCP server, URL + OAuth, discovery + DCR + sign-in succeeded ("connected account" shown), real chat called the tools: listed 11 GA4 properties and ran a 7-day sessions report | No `search`/`fetch` shims needed. ChatGPT settings were renamed: connectors are now "Plugins" (chatgpt.com/plugins). Paid-plan tier not determined (owner's account has custom MCP). Did not observe the consent click; the owner's sign-in session was already live |
 | 6.2 | Claude (web/desktop custom connector, Max) | HUMAN+TEST | 4.7 | DONE | claude+owner | Real chat on claude.ai used the connector: DCR, consent, token, tools/list, list properties + 2 GA4 reports; answer had real data (2,149,398 sessions last 7d for Punch Newspapers - GA4) | Per-tool permission prompts are Claude's. See `docs/clients.md` |
 | 6.3 | Claude Code (`claude mcp add --transport http`) | TEST | 4.7 | TODO | | | |
 | 6.4 | Cursor | TEST | 4.7 | TODO | | | |
@@ -150,6 +152,19 @@ Record result per client: connected? OAuth ok? tools listed? sample call ok? qui
 | 8.4 | Directory listings: ChatGPT Apps, Claude, others | HUMAN | TODO | |
 | 8.5 | Move off personal accounts per migration checklist | HUMAN | TODO | |
 
+## Phase 9: Social connections (direction set 2026-10-28)
+
+Goal: after sign-in, a user sees only the data of the accounts *they* connected (Google first, then YouTube, then Meta). Order is deliberate: isolation first, then providers from cheapest to most gated. Each provider needs a Decision entry and owner OK before code (CLAUDE.md: read-only scopes only; tokens encrypted; never passed to AI clients). Verify each provider's current docs before coding.
+
+| ID | Task | Kind | Deps | Status | Notes |
+|---|---|---|---|---|---|
+| 9.0 | **Account isolation proof**: 2-user test in prod (second Google account via private window; confirm each connector sees only its own properties); unit test that two users' tokens resolve to their own connection only | TEST+HUMAN | n/a | DOING | Unit part DONE (`tests/google/auth.test.ts` "account isolation"). Prod two-account test waits on Ayo connecting his own Google account | Code review done 2026-10-28: token -> `userId` -> `getGoogleAuth(user.id)`; no cross-user path found. Prod has 1 user, so never exercised with 2 |
+| 9.1 | Consent page: show who is signed in + "Not you? Switch account"; force Google account picker (`prompt=select_account`) on connector authorization | CODE | 9.0 | DONE | Evidence 2026-10-28: `tests/oauth/authorize.test.ts` (switch clears session, no code, needs csrf), `tests/connect/flow.test.ts` prompt; lint/typecheck/325 tests/build pass. **Not committed or deployed**, so prod still behaves the old way until the owner OKs a push |
+| 9.2 | **Revised 2026-10-28:** YouTube is Google, so it needs no new table. Make the existing Google connection scope-aware: base scopes (GA4+GSC) stay required; optional extras (`youtube.readonly`, `yt-analytics.readonly`) are requested via `/api/connect/google/start?add=youtube` (incremental consent, `include_granted_scopes`), carried in the signed state cookie, verified against what Google granted, and stored in `google_connections.scopes`. Tools check the stored scopes and answer "connect YouTube at /account first" when absent. A separate `provider_connections` table is only needed for Meta (9.4) | CODE | 9.0 | DONE | Touches `connect/{flow,google}.ts`, `/account` page, `account_status`. Needs owner OK (new read-only scopes). YouTube brand channels: user must pick the channel at Google's consent step Evidence 2026-10-28: `tests/connect/flow.test.ts` (optional scopes, unknown `add` ignored, requires granted scopes), `tests/google/auth` scopes; local only, not pushed |
+| 9.3 | **YouTube** (read-only `youtube.readonly`, `yt-analytics.readonly`; incremental consent from `/account`): `yt_list_channels`, `yt_channel_report`, `yt_top_videos`, `yt_video_report` | CODE | 9.2 | DOING | Test with owner's YouTube channel. Data API quota 10k units/day per project: cache + caps. Sensitive scopes -> Google verification (8.2) Built locally: 3 tools (`yt_list_channels`, `yt_analytics_report` incl. per-video, `yt_top_videos`), `/account` Connect YouTube button; `tests/google/youtube.test.ts`; 336 tests, lint, typecheck, build pass. **Still needed before the live test:** enable YouTube Data API v3 + YouTube Analytics API in Cloud project `insights-mcp-poc`, add the 2 scopes under Data Access, then push, connect on `/account`. Also update `/privacy` to name YouTube (YouTube API Services terms) |
+| 9.4 | **Meta app** (Facebook Pages + Instagram Business/Creator, read-only insights); dev-mode first with company account as tester; start App Review + Business Verification early | HUMAN+CODE | 9.2 | TODO | No refresh tokens (long-lived ~60 days, must re-extend), needs privacy URL + data-deletion callback |
+| 9.5 | Later / not planned: X (paid, usage-based), TikTok, LinkedIn (gated access) | | | TODO | Revisit on demand |
+
 ---
 
 ## Decisions
@@ -170,6 +185,7 @@ Record result per client: connected? OAuth ok? tools listed? sample call ok? qui
 | 2026-10-06 | MCP endpoint at `/mcp` via `src/app/mcp/route.ts`; stateless Streamable HTTP; CORS `*` (bearer-only, no cookies) | Agent B |
 | 2026-10-06 | Google ID token: issuer/audience/expiry checked, signature not (received directly from Google's token endpoint over TLS) | Agent D; consider adding signature check (cheap) |
 | 2026-10-06 | Disconnect deletes the `google_connections` row; "Delete my data" cascades the user | Matches "delete encrypted token" in ARCHITECTURE §7 |
+| 2026-10-28 | Social connections are added per provider as read-only "provider connections" linked to the signed-in user; Google stays the identity. Order: isolation proof (9.0-9.1) -> provider model (9.2) -> YouTube (9.3) -> Meta FB/IG (9.4). Meta read-only equivalents of the Google security rules apply. **Proposed, awaiting owner OK before 9.2** | A user must only ever see accounts they connected |
 | 2026-10-06 | Integration branch merges agent worktree branches; STATUS.md log conflicts resolved by keeping both sides; table rows reconciled by hand | Parallel agents editing one file duplicates rows; the integrator must reconcile |
 
 ## Blockers
@@ -196,6 +212,17 @@ _None yet._
 - [x] Merged to `main` with owner OK (production deploy).
 
 ## Log (newest first)
+
+- 2026-10-28: Isolation check. Code: every tool resolves token -> `userId` -> that user's own `google_connections` row (`src/server/mcp/tools/google.ts`, `google/auth.ts`); no cross-user path found. Prod (read via `/admin`, `/admin/usage`): exactly **1 user** (`netojaycee@gmail.com`, plan internal), all 86 calls in 7d are that user's. So a second person (e.g. Ayo) seeing the owner's data means they are riding the owner's connector (same ChatGPT login/workspace or same browser session), not a server leak; never tested with 2 real users (task 9.0). Also noted: `plan_blocked` x4 in usage (trial end 2026-10-20 passed before plan was set to internal).
+- 2026-10-28: Google Cloud `insights-mcp-poc` (via Chrome, owner OK): enabled YouTube Data API v3 + YouTube Analytics API; added `youtube.readonly` and `yt-analytics.readonly` under Data Access (saved, verified after reload; justification text left empty, needed at verification 8.2). `/privacy` now names YouTube, YouTube ToS and Google Privacy Policy.
+- 2026-10-28: YouTube built locally (9.2 done, 9.3 code done; live test pending Cloud setup + push). Tools: yt_list_channels, yt_analytics_report, yt_top_videos (fewer than the 4 first planned: per-video report is a `videoId` option).
+- 2026-10-28: Deferred making `users.email` unique: sign-in upserts by Google sub, so a unique index would make a re-created Google account with a reused email fail sign-in with a 500; needs a deliberate collision rule first.
+- 2026-10-28: 9.1 done locally (Switch account button, `prompt=select_account consent`) + two-user isolation unit test; 325 tests, lint, typecheck, build pass; not committed. Cause of the mix-up: owner's session was live when the connector was added in Ayo's ChatGPT.
+- 2026-10-28: Added Phase 9 (social connections) and a Decision; nothing coded yet.
+
+- 2026-10-06: Added public `/setup` team guide (`src/app/setup/page.tsx`, linked from `/`; fixed stale ChatGPT steps on `/`). Lint, typecheck, 321 tests, build pass; not yet deployed. Confirmed on `/account` that the owner's connected Google account is the personal `netojaycee@gmail.com` (it has access to the Punch properties); company teammates must pick their own work Google account at the Google step.
+
+- 2026-10-06: **ChatGPT end-to-end verified (6.1)** via Claude in Chrome with the owner logged in. Created a custom MCP server in ChatGPT (Plugins -> Add -> Create custom MCP server, `https://insights.johnedeh.com/mcp`, OAuth), connected, and a real chat listed 11 GA4 properties and ran a sessions report. UI note: connectors are now called Plugins; the dialog's Create button sits at the very bottom edge in a short window.
 
 - 2026-10-06: **Security review fixes** (independent read-only review, findings #1-#10). #1 HIGH "Delete my data" let a suspended/expired user reset their plan: now a hash-keyed tombstone (`deleted_accounts`, sha256 of Google sub, plan + trial end only, 12 months) restores plan state on re-sign-in (admin grant still wins). #2 `email_verified` required at sign-in (admin/grant matching rely on email). #3 DCR throttle: denied attempts no longer drain the global cap (1000/day); IP detection no longer trusts x-real-ip / leftmost X-Forwarded-For outside Vercel. #4 sessions: `typ` tag, `iat`, `users.auth_valid_after` (set by admin revoke/suspend), email re-read from DB, POST `/api/connect/logout` + Sign out button. #5 delete now purges audit rows about the user and pre-approvals for their email; cleanup retention: audit_log 12 months, tombstones 12 months, usage 90 days; privacy page states these. #6 consent page warns the client name is self-declared; `/mcp` bad-token requests throttled per hashed IP (429). #7 global security headers (nosniff, X-Frame-Options, frame-ancestors, HSTS). #9 tool output is prefixed with an untrusted-data note. #10 dev auth stub also needs `ALLOW_DEV_AUTH=1`; signed cookies are type-separated. Migration 0003 applied to dev and prod. Found along the way: the Neon `dev` branch had an empty Drizzle journal, so dev migrations silently failed; journal seeded from prod and documented in runbook.
 - 2026-10-06: Added Dockerfile (opt-in standalone output), runbook and migration guide (7.3, 7.4). Started an independent read-only security review (7.1); findings pending.

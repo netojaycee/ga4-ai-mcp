@@ -88,8 +88,8 @@ export async function getSessionUserFromCookieHeader(
 }
 
 /** Where /oauth/authorize sends a logged-out user. `returnTo` must be a same-origin path. */
-export function connectStartPath(returnTo: string): string {
-  return `/api/connect/google/start?return_to=${encodeURIComponent(returnTo)}`;
+export function connectStartPath(returnTo: string, add?: string): string {
+  return `/api/connect/google/start?return_to=${encodeURIComponent(returnTo)}${add ? `&add=${encodeURIComponent(add)}` : ""}`;
 }
 
 /** Set-Cookie header value that logs `user` in. */

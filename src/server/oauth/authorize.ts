@@ -1,4 +1,4 @@
-import { connectStartPath } from "@/server/auth/session";
+import { clearSessionCookie, connectStartPath } from "@/server/auth/session";
 import { safeEqual, sha256Hex } from "@/server/security/hash";
 import { OAUTH, PATHS, canonicalResource, grantScope, sameResource } from "./config";
 import type { OAuthDeps } from "./deps";
@@ -115,13 +115,13 @@ function csrfCookie(deps: OAuthDeps, value: string, maxAge: number): string {
 
 const FORM_FIELDS = ["client_id", "redirect_uri", "response_type", "code_challenge", "code_challenge_method", "state", "resource", "scope"];
 
-function loginRedirect(params: URLSearchParams): Response {
+function loginRedirect(params: URLSearchParams, extraHeaders: HeadersInit = {}): Response {
   const q = new URLSearchParams();
   for (const name of FORM_FIELDS) for (const v of params.getAll(name)) q.append(name, v);
-  return new Response(null, {
-    status: 303,
-    headers: { Location: connectStartPath(`${PATHS.authorize}?${q.toString()}`), "Cache-Control": "no-store" },
-  });
+  const h = new Headers(extraHeaders);
+  h.set("Location", connectStartPath(`${PATHS.authorize}?${q.toString()}`));
+  h.set("Cache-Control", "no-store");
+  return new Response(null, { status: 303, headers: h });
 }
 
 export async function handleAuthorizeGet(deps: OAuthDeps, req: Request): Promise<Response> {
@@ -191,6 +191,14 @@ export async function handleAuthorizePost(deps: OAuthDeps, req: Request): Promis
     return redirectTo(deps, v.redirectUri, { error: v.error, error_description: v.description, state: v.state });
   }
   const clearCookie = { "Set-Cookie": csrfCookie(deps, "", 0) };
+
+  // "Not you?": end this browser's session and send the person back through Google's account picker.
+  if (form.get("decision") === "switch") {
+    const h = new Headers();
+    h.append("Set-Cookie", clearSessionCookie());
+    h.append("Set-Cookie", csrfCookie(deps, "", 0));
+    return loginRedirect(form, h);
+  }
 
   const user = await deps.getUser(req);
   if (!user) return loginRedirect(form);

@@ -10,12 +10,15 @@ import { decryptSecret, encryptSecret, needsReencryption, payloadVersion } from 
 export interface GoogleAuth {
   /** A currently valid access token, refreshed transparently when it is about to expire. */
   getAccessToken(): Promise<string>;
+  /** Scopes the user granted to this connection (stored at connect time). */
+  scopes: readonly string[];
 }
 
 export interface ConnectionRow {
   id: string;
   refreshTokenEnc: string;
   status: "active" | "revoked" | "error";
+  scopes?: string[];
 }
 
 /** Narrow persistence interface so tests never need a database. */
@@ -106,6 +109,7 @@ export function createDrizzleConnectionStore(): ConnectionStore {
           id: googleConnections.id,
           refreshTokenEnc: googleConnections.refreshTokenEnc,
           status: googleConnections.status,
+          scopes: googleConnections.scopes,
         })
         .from(googleConnections)
         .where(eq(googleConnections.userId, userId))
@@ -181,6 +185,7 @@ export async function getGoogleAuth(userId: string, overrides: Partial<AuthDeps>
 
   let reencrypted = false;
   return {
+    scopes: conn.scopes ?? [],
     async getAccessToken() {
       const cached = deps.cache.get(userId);
       if (cached && cached.expiresAt - EXPIRY_SKEW_MS > deps.now()) return cached.token;

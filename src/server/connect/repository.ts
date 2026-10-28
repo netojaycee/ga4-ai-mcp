@@ -29,6 +29,8 @@ export interface AccountView {
   trialEndsAt: Date | null;
   googleEmail: string | null;
   connectionStatus: "active" | "revoked" | "error" | null;
+  /** Scopes granted on the Google connection (empty when not connected). */
+  scopes: string[];
 }
 
 export interface ConnectRepository {
@@ -103,6 +105,7 @@ export function drizzleConnectRepository(): ConnectRepository {
         trialEndsAt: u.trialEndsAt,
         googleEmail: c?.googleEmail ?? null,
         connectionStatus: c?.status ?? null,
+        scopes: c?.scopes ?? [],
       };
     },
     async getConnectionTokenEnc(userId) {

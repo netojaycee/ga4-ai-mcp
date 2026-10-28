@@ -10,10 +10,10 @@ export default function Privacy() {
   return (
     <SiteShell name={b.name}>
       <h1 className="text-3xl font-bold">Privacy policy</h1>
-      <p className="opacity-70">Last updated: 6 October 2026</p>
+      <p className="opacity-70">Last updated: 28 October 2026</p>
 
       <p>
-        {b.name} lets an AI assistant that you choose read your Google Analytics 4 and Google Search Console data on
+        {b.name} lets an AI assistant that you choose read your Google Analytics 4, Google Search Console and (if you choose to connect it) YouTube data on
         your behalf. This page explains what we collect, why, and how to remove it.
       </p>
 
@@ -22,6 +22,10 @@ export default function Privacy() {
       <ul className="list-disc space-y-1 pl-6">
         <li>View your Google Analytics data (<code>analytics.readonly</code>).</li>
         <li>View your Search Console data (<code>webmasters.readonly</code>).</li>
+        <li>
+          Only if you click <em>Connect YouTube</em>: view your YouTube channel and its analytics (
+          <code>youtube.readonly</code>, <code>yt-analytics.readonly</code>). Without that click we never ask for these.
+        </li>
         <li>Your Google account email address, name and a unique account identifier, to sign you in.</li>
       </ul>
       <p>We never request permission to change, create or delete anything in your Google accounts.</p>
@@ -41,7 +45,7 @@ export default function Privacy() {
         <li>Your plan or trial status, and a short log of administrative actions on your account.</li>
       </ul>
       <p>
-        <strong>We do not store your analytics or Search Console data.</strong> It is fetched from Google at the moment
+        <strong>We do not store your analytics, Search Console or YouTube data.</strong> It is fetched from Google at the moment
         you ask a question and passed to the AI assistant you connected. We do not keep a copy.
       </p>
 
@@ -52,7 +56,9 @@ export default function Privacy() {
         <a className="underline" href="https://developers.google.com/terms/api-services-user-data-policy">
           Google API Services User Data Policy
         </a>
-        , including its Limited Use requirements.
+        , including its Limited Use requirements. If you connect YouTube, you are also agreeing to be bound by the{" "}
+        <a className="underline" href="https://www.youtube.com/t/terms">YouTube Terms of Service</a> and the{" "}
+        <a className="underline" href="https://policies.google.com/privacy">Google Privacy Policy</a>.
       </p>
 
       <h2 className="text-xl font-semibold">Your AI assistant and other services</h2>
@@ -81,7 +87,7 @@ export default function Privacy() {
         You can disconnect Google at any time from your <a className="underline" href="/account">account page</a>. That
         revokes our access with Google, deletes the stored token and ends all assistant sessions. You can also choose{" "}
         <em>Delete my data</em> there to remove your account record. You can revoke access from Google directly at{" "}
-        <a className="underline" href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.
+        <a className="underline" href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a> (this also covers YouTube access).
         Usage records (time, tool, property or site identifier, success, response time, row count) are kept for 90 days and then deleted. A short log of administrative and sign-in events is kept for up to 12 months. When you choose <em>Delete my data</em>, your account, tokens, the log entries about you and any pre-approval for your email are deleted immediately; usage records are detached from you and removed within 90 days. To prevent repeated free trials and lifted suspensions, we keep for 12 months a one-way hash of your Google account identifier together with your plan status (no email or name).
       </p>
 

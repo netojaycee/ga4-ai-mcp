@@ -5,6 +5,24 @@ export const GOOGLE_SCOPE_SEARCH_CONSOLE = "https://www.googleapis.com/auth/webm
 export const REQUIRED_SCOPES = [GOOGLE_SCOPE_ANALYTICS, GOOGLE_SCOPE_SEARCH_CONSOLE] as const;
 export const REQUESTED_SCOPES = ["openid", "email", "profile", ...REQUIRED_SCOPES] as const;
 
+export const GOOGLE_SCOPE_YOUTUBE = "https://www.googleapis.com/auth/youtube.readonly";
+export const GOOGLE_SCOPE_YOUTUBE_ANALYTICS = "https://www.googleapis.com/auth/yt-analytics.readonly";
+
+/** Optional read-only add-ons, requested only when the user clicks their Connect button (incremental consent). */
+export const SCOPE_PACKS = {
+  youtube: [GOOGLE_SCOPE_YOUTUBE, GOOGLE_SCOPE_YOUTUBE_ANALYTICS],
+} as const;
+export type ScopePack = keyof typeof SCOPE_PACKS;
+
+/** Unknown names are dropped, never passed through to Google. */
+export function parsePacks(values: readonly string[]): ScopePack[] {
+  const out = new Set<ScopePack>();
+  for (const v of values) if (Object.hasOwn(SCOPE_PACKS, v)) out.add(v as ScopePack);
+  return [...out];
+}
+
+export const packScopes = (packs: readonly ScopePack[]): string[] => packs.flatMap((p) => [...SCOPE_PACKS[p]]);
+
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const REVOKE_URL = "https://oauth2.googleapis.com/revoke";
@@ -24,7 +42,7 @@ export interface GoogleIdentity {
 
 /** Everything the flow needs from Google. Fakeable in tests. */
 export interface GoogleClient {
-  authUrl(p: { redirectUri: string; state: string; codeChallenge: string }): string;
+  authUrl(p: { redirectUri: string; state: string; codeChallenge: string; extraScopes?: readonly string[] }): string;
   exchangeCode(p: { code: string; redirectUri: string; codeVerifier: string }): Promise<GoogleTokens>;
   /** Verifies the ID token (audience, issuer, expiry) and returns the identity. Throws if invalid. */
   verifyIdToken(idToken: string): GoogleIdentity;
@@ -84,18 +102,18 @@ export function parseIdToken(idToken: string, clientId: string, nowSeconds: numb
 export function createGoogleClient(cfg: { clientId: string; clientSecret: string; now?: () => number }): GoogleClient {
   const now = cfg.now ?? (() => Date.now());
   return {
-    authUrl({ redirectUri, state, codeChallenge }) {
+    authUrl({ redirectUri, state, codeChallenge, extraScopes = [] }) {
       const u = new URL(AUTH_URL);
       u.search = new URLSearchParams({
         client_id: cfg.clientId,
         redirect_uri: redirectUri,
         response_type: "code",
-        scope: REQUESTED_SCOPES.join(" "),
+        scope: [...REQUESTED_SCOPES, ...extraScopes].join(" "),
         state,
         code_challenge: codeChallenge,
         code_challenge_method: "S256",
         access_type: "offline",
-        prompt: "consent",
+        prompt: "select_account consent",
         include_granted_scopes: "true",
       }).toString();
       return u.toString();
@@ -135,7 +153,7 @@ export function createGoogleClient(cfg: { clientId: string; clientSecret: string
   };
 }
 
-export function missingScopes(granted: string): string[] {
+export function missingScopes(granted: string, extra: readonly string[] = []): string[] {
   const set = new Set(granted.split(/\s+/).filter(Boolean));
-  return REQUIRED_SCOPES.filter((s) => !set.has(s));
+  return [...REQUIRED_SCOPES, ...extra].filter((s) => !set.has(s));
 }

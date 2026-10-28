@@ -4,6 +4,7 @@ import { env } from "@/config/env";
 import { brand } from "@/config/brand";
 import { csrfTokenFor, getSessionUserFromCookieHeader } from "@/server/auth/session";
 import { connectStartPath } from "@/server/auth/session";
+import { GOOGLE_SCOPE_YOUTUBE, GOOGLE_SCOPE_YOUTUBE_ANALYTICS } from "@/server/connect/google";
 import { drizzleConnectRepository } from "@/server/connect/repository";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +41,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
 
   const csrf = csrfTokenFor(cookie, env().SESSION_SECRET) ?? "";
   const connected = account.connectionStatus === "active";
+  const youtubeOn = account.scopes.includes(GOOGLE_SCOPE_YOUTUBE) && account.scopes.includes(GOOGLE_SCOPE_YOUTUBE_ANALYTICS);
   return (
     <main style={wrap}>
       <h1>Your account</h1>
@@ -58,6 +60,19 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         <p>
           <a href={connectStartPath("/account")}>Connect Google</a>
         </p>
+      )}
+      {connected && (
+        <section aria-labelledby="youtube-h">
+          <h2 id="youtube-h">YouTube</h2>
+          {youtubeOn ? (
+            <p>YouTube is connected (read-only). To switch to a different channel, connect again and pick the channel on Google&apos;s screen.</p>
+          ) : (
+            <p>Let your AI assistant read your YouTube channel&apos;s analytics (read-only).</p>
+          )}
+          <p>
+            <a href={connectStartPath("/account", "youtube")}>{youtubeOn ? "Reconnect YouTube" : "Connect YouTube"}</a>
+          </p>
+        </section>
       )}
       <section aria-labelledby="signout-h">
         <h2 id="signout-h">Sign out</h2>

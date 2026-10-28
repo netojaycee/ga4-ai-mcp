@@ -2,7 +2,17 @@ import { DEFAULT_PLAN_FOR_NEW_USERS, type Plan } from "@/config/plans";
 import { createSessionCookie } from "@/server/auth/session";
 import { pkceS256, randomToken, safeEqual, sha256Hex } from "@/server/security/hash";
 import { escapeHtml, htmlPage, redirect } from "./html";
-import { EmailNotVerifiedError, missingScopes, type GoogleClient, REQUIRED_SCOPES } from "./google";
+import {
+  EmailNotVerifiedError,
+  GOOGLE_SCOPE_YOUTUBE,
+  GOOGLE_SCOPE_YOUTUBE_ANALYTICS,
+  missingScopes,
+  packScopes,
+  parsePacks,
+  type GoogleClient,
+  REQUIRED_SCOPES,
+  type ScopePack,
+} from "./google";
 import type { ConnectRepository } from "./repository";
 import { sanitizeReturnTo } from "./returnTo";
 import { readCookie, serializeCookie, signPayload, verifyPayload } from "./signed";
@@ -31,6 +41,8 @@ interface StatePayload {
   state: string;
   verifier: string;
   returnTo: string;
+  /** Optional scope packs this sign-in asked for (e.g. "youtube"). */
+  add?: ScopePack[];
   exp: number;
 }
 
@@ -41,15 +53,18 @@ const retryLink = (returnTo: string) =>
   `<p><a class="btn" href="/api/connect/google/start?return_to=${encodeURIComponent(returnTo)}">Try connecting again</a></p>`;
 
 export function handleStart(req: Request, d: ConnectDeps): Response {
-  const returnTo = sanitizeReturnTo(new URL(req.url).searchParams.get("return_to"));
+  const q = new URL(req.url).searchParams;
+  const returnTo = sanitizeReturnTo(q.get("return_to"));
+  const add = parsePacks(q.getAll("add"));
   const state = randomToken(24);
   const verifier = randomToken(48);
   const exp = Math.floor(d.now() / 1000) + STATE_TTL_SECONDS;
-  const cookie = stateCookie(signPayload({ typ: "oauth_state", state, verifier, returnTo, exp } satisfies StatePayload, d.sessionSecret), STATE_TTL_SECONDS, d);
+  const cookie = stateCookie(signPayload({ typ: "oauth_state", state, verifier, returnTo, add, exp } satisfies StatePayload, d.sessionSecret), STATE_TTL_SECONDS, d);
   const url = d.google.authUrl({
     redirectUri: `${d.baseUrl}${CALLBACK_PATH}`,
     state,
     codeChallenge: pkceS256(verifier),
+    extraScopes: packScopes(add),
   });
   return redirect(url, [cookie]);
 }
@@ -107,11 +122,13 @@ export async function handleCallback(req: Request, d: ConnectDeps): Promise<Resp
     return fail("Google sign-in failed", "<p>We could not complete the sign-in with Google. Please try again.</p>", 502, returnTo);
   }
 
-  const missing = missingScopes(tokens.scope);
+  const missing = missingScopes(tokens.scope, packScopes(parsePacks(saved.add ?? [])));
   if (missing.length > 0) {
     const names: Record<string, string> = {
       [REQUIRED_SCOPES[0]]: "Google Analytics (read-only)",
       [REQUIRED_SCOPES[1]]: "Search Console (read-only)",
+      [GOOGLE_SCOPE_YOUTUBE]: "YouTube channel data (read-only)",
+      [GOOGLE_SCOPE_YOUTUBE_ANALYTICS]: "YouTube Analytics (read-only)",
     };
     const list = missing.map((s) => `<li>${escapeHtml(names[s] ?? s)}</li>`).join("");
     return fail(

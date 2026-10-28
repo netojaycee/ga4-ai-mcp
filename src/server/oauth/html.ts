@@ -59,6 +59,7 @@ export function consentPage(view: ConsentView, extraHeaders: Record<string, stri
     view.redirectHost,
   )}.</p>
 <form method="post" action="/oauth/authorize">${hidden}<input type="hidden" name="csrf" value="${escapeHtml(view.csrf)}">
-<div class="row"><button class="primary" type="submit" name="decision" value="approve">Approve</button><button type="submit" name="decision" value="deny">Deny</button></div></form>`;
+<div class="row"><button class="primary" type="submit" name="decision" value="approve">Approve</button><button type="submit" name="decision" value="deny">Deny</button></div>
+<p class="muted">Not ${escapeHtml(view.email)}? <button type="submit" name="decision" value="switch">Switch account</button></p></form>`;
   return page("Authorize access", body, 200, extraHeaders);
 }

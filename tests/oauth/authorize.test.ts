@@ -164,6 +164,26 @@ describe("authorize: consent POST", () => {
     expect(h.codes.size).toBe(0);
   });
 
+  it("consent page names the signed-in account and offers Switch account", async () => {
+    const html = await (await get(authorizeUrl())).text();
+    expect(html).toMatch(/Not [^<]+\? <button[^>]*value="switch"/);
+  });
+
+  it("switch ends the session, issues no code, and returns through the Google sign-in", async () => {
+    const { csrf, fields } = await consent();
+    const r = await post({ ...fields, decision: "switch" }, { origin: BASE, cookie: `oauth_csrf=${csrf}` });
+    expect(r.status).toBe(303);
+    expect(r.headers.get("location")).toMatch(/^\/api\/connect\/google\/start\?return_to=/);
+    expect(r.headers.get("set-cookie")).toMatch(/ga_session=;/);
+    expect(h.codes.size).toBe(0);
+  });
+
+  it("switch still needs a valid csrf token", async () => {
+    const { fields } = await consent();
+    const r = await post({ ...fields, decision: "switch" }, { origin: BASE });
+    expect(r.status).toBe(403);
+  });
+
   it("tampered hidden fields cannot redirect to an unregistered URI (open redirect)", async () => {
     const { csrf, fields } = await consent();
     const r = await post({ ...fields, redirect_uri: "https://evil.example/steal" }, { origin: BASE, cookie: `oauth_csrf=${csrf}` });

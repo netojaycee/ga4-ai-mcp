@@ -4,7 +4,7 @@ import { authenticateMcp } from "@/server/mcp/auth";
 import { UNTRUSTED_DATA_NOTE, asOutput } from "@/server/mcp/tools/google";
 
 describe("tool registry", () => {
-  it("registers account + 8 Google tools with unique snake_case names", () => {
+  it("registers account + 8 Google + 3 YouTube tools with unique snake_case names", () => {
     const names = TOOLS.map((t) => t.name);
     expect(names).toEqual([
       "account_status",
@@ -16,6 +16,9 @@ describe("tool registry", () => {
       "gsc_search_analytics",
       "gsc_inspect_url",
       "gsc_list_sitemaps",
+      "yt_list_channels",
+      "yt_analytics_report",
+      "yt_top_videos",
     ]);
     expect(new Set(names).size).toBe(names.length);
     for (const t of TOOLS) {
