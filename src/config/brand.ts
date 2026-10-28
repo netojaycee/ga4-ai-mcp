@@ -6,7 +6,7 @@ import { env } from "@/config/env";
  */
 export const brandStatic = {
   slug: "insights-connector",
-  tagline: "Connect your AI assistant to Google Analytics 4 and Search Console.",
+  tagline: "Connect your AI assistant to Google Analytics 4, Search Console and YouTube.",
   privacyPath: "/privacy",
   termsPath: "/terms",
   mcpPath: "/mcp",

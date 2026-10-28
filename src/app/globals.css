@@ -1,26 +1,159 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f6f7fb;
+  --foreground: #14161c;
+  --surface: #ffffff;
+  --line: #e4e7ef;
+  --muted: #586174;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-soft: #eceeff;
+  --danger: #c62828;
+  --danger-soft: #fdecec;
+  --ok: #15803d;
+  --ok-soft: #e7f6ec;
+  --code: #eceef5;
+  --shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 8px 24px rgb(16 24 40 / 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0b0d12;
+    --foreground: #e9ebf1;
+    --surface: #131620;
+    --line: #242938;
+    --muted: #9aa3b5;
+    --accent: #6366f1;
+    --accent-hover: #7b7ff5;
+    --accent-soft: #1d2040;
+    --danger: #f87171;
+    --danger-soft: #2a1618;
+    --ok: #4ade80;
+    --ok-soft: #12261a;
+    --code: #1c2030;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.15rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--foreground);
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.05s;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; border-color: var(--line); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .btn-danger { color: var(--danger); border-color: var(--danger); background: transparent; }
+  .btn-danger:hover { background: var(--danger-soft); border-color: var(--danger); }
+  .btn-danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .btn-danger-solid:hover { background: var(--danger); filter: brightness(0.92); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: var(--shadow);
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: var(--code);
+    color: var(--muted);
+  }
+  .badge-ok { background: var(--ok-soft); color: var(--ok); }
+  .badge-accent { background: var(--accent-soft); color: var(--accent); }
+  .eyebrow {
+    display: inline-block;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .kbd-url {
+    display: block;
+    padding: 0.8rem 1rem;
+    border-radius: 0.75rem;
+    background: var(--code);
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-size: 0.9rem;
+    word-break: break-all;
+    user-select: all;
+  }
+  .step-num {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+
+  /* Long-form pages (privacy, terms, setup): style plain markup without per-element classes. */
+  .prose-page h1 { font-size: 2.1rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+  .prose-page h2 { font-size: 1.3rem; font-weight: 700; margin-top: 2.25rem; letter-spacing: -0.01em; }
+  .prose-page p, .prose-page li { color: color-mix(in srgb, var(--foreground) 88%, transparent); }
+  .prose-page ul { list-style: disc; padding-left: 1.5rem; }
+  .prose-page ol { list-style: decimal; padding-left: 1.5rem; }
+  .prose-page ul > li, .prose-page ol > li { margin-top: 0.4rem; }
+  .prose-page a { color: var(--accent); text-underline-offset: 3px; text-decoration: underline; }
+  .prose-page code {
+    background: var(--code);
+    padding: 0.1rem 0.4rem;
+    border-radius: 0.4rem;
+    font-size: 0.88em;
+    word-break: break-all;
+  }
 }

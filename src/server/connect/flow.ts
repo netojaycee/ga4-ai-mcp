@@ -50,7 +50,7 @@ const stateCookie = (value: string, maxAge: number, d: ConnectDeps) =>
   serializeCookie(STATE_COOKIE, value, { maxAgeSeconds: maxAge, path: STATE_COOKIE_PATH, secure: d.secure });
 
 const retryLink = (returnTo: string) =>
-  `<p><a class="btn" href="/api/connect/google/start?return_to=${encodeURIComponent(returnTo)}">Try connecting again</a></p>`;
+  `<p><a class="btn primary" href="/api/connect/google/start?return_to=${encodeURIComponent(returnTo)}">Try connecting again</a></p>`;
 
 export function handleStart(req: Request, d: ConnectDeps): Response {
   const q = new URL(req.url).searchParams;

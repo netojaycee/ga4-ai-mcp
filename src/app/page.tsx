@@ -1,58 +1,129 @@
+import Link from "next/link";
 import { brand } from "@/config/brand";
 import { SiteShell } from "./_components/site-shell";
 
 export const dynamic = "force-dynamic";
 
-const steps = [
-  ["ChatGPT", "Settings, Apps & Connectors, enable Developer mode, then Create and paste the server URL below. Choose OAuth when asked."],
-  ["Claude", "Settings, Connectors, Add custom connector, and paste the server URL below."],
-  ["Cursor, VS Code, Claude Code and other MCP clients", "Add a remote (HTTP) MCP server with the URL below and sign in when prompted."],
-];
+const features = [
+  ["Google Analytics 4", "Traffic, conversions, top pages and realtime activity, across all your properties."],
+  ["Search Console", "Queries, pages, clicks and indexing status, straight from Google."],
+  ["YouTube", "Channel views, watch time, subscribers and your best videos. Connect it when you want it."],
+] as const;
+
+const clients = [
+  ["ChatGPT", "Open chatgpt.com/plugins, Add, Create custom MCP server, paste the server URL and choose OAuth."],
+  ["Claude", "Settings, Customize, Connectors, Add custom connector, and paste the server URL."],
+  ["Cursor, VS Code, Claude Code and others", "Add a remote (HTTP) MCP server with the URL and sign in when prompted."],
+] as const;
+
+const trust = [
+  ["Read-only", "Your assistant can look at your data, never change it."],
+  ["Nothing stored", "Analytics data is fetched when you ask and never kept."],
+  ["Encrypted tokens", "Google access is stored encrypted and never handed to your AI app."],
+  ["Disconnect any time", "Revoke access and delete your data from your account page."],
+] as const;
+
+function Check() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="mt-1 flex-none text-accent">
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
 
 export default function Home() {
   const b = brand();
   return (
-    <SiteShell name={b.name}>
-      <h1 className="text-3xl font-bold">{b.name}</h1>
-      <p className="text-lg">{b.tagline}</p>
-      <p>
-        Sign in with Google once, then ask your AI assistant questions about your traffic, conversions and search
-        performance. Access is <strong>read-only</strong>: the assistant can look at your data, never change it.
-      </p>
-
-      <section aria-labelledby="url" className="space-y-2">
-        <h2 id="url" className="text-xl font-semibold">
-          Server URL
-        </h2>
-        <p>
-          <code className="rounded bg-black/10 px-2 py-1 break-all dark:bg-white/10">{b.mcpUrl}</code>
+    <SiteShell name={b.name} wide prose={false}>
+      <section className="py-8 text-center sm:py-14">
+        <span className="eyebrow">Read-only · Works with ChatGPT, Claude, Cursor and more</span>
+        <h1 className="mx-auto mt-5 max-w-3xl text-4xl font-extrabold tracking-tight sm:text-5xl">
+          Ask your AI about your <span className="bg-gradient-to-r from-indigo-500 to-violet-500 bg-clip-text text-transparent">analytics</span>
+        </h1>
+        <p className="mx-auto mt-5 max-w-2xl text-lg text-muted">
+          Sign in with Google once, then ask questions about your traffic, search performance and YouTube channel in
+          plain language. {b.name} gives your assistant read-only access, nothing more.
         </p>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Link href="/setup" className="btn btn-primary">
+            Get started
+          </Link>
+          <Link href="/account" className="btn">
+            Connect your account
+          </Link>
+        </div>
       </section>
 
-      <section aria-labelledby="how" className="space-y-3">
-        <h2 id="how" className="text-xl font-semibold">
-          How to connect
+      <section aria-labelledby="url" className="card mx-auto max-w-2xl space-y-3">
+        <h2 id="url" className="text-lg font-semibold">
+          Your server URL
         </h2>
-        <ol className="list-decimal space-y-3 pl-6">
-          {steps.map(([who, what]) => (
-            <li key={who}>
-              <strong>{who}.</strong> {what}
-            </li>
+        <p className="text-sm text-muted">Paste this into your AI app when it asks for a connector or MCP server. Click it to select it.</p>
+        <code className="kbd-url">{b.mcpUrl}</code>
+      </section>
+
+      <section aria-labelledby="what" className="mt-14">
+        <h2 id="what" className="text-center text-2xl font-bold tracking-tight">
+          What you can ask about
+        </h2>
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          {features.map(([title, text]) => (
+            <div key={title} className="card">
+              <h3 className="font-semibold">{title}</h3>
+              <p className="mt-2 text-sm leading-6 text-muted">{text}</p>
+            </div>
           ))}
-        </ol>
-        <p>
-          You will be sent to Google to approve read-only access to Google Analytics and Search Console. While the app is
-          in early access, Google may show an &ldquo;unverified app&rdquo; notice; choose Advanced to continue.
+        </div>
+      </section>
+
+      <section aria-labelledby="how" className="mt-14">
+        <h2 id="how" className="text-center text-2xl font-bold tracking-tight">
+          Connect in two minutes
+        </h2>
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          {clients.map(([who, what], i) => (
+            <div key={who} className="card">
+              <span className="step-num">{i + 1}</span>
+              <h3 className="mt-3 font-semibold">{who}</h3>
+              <p className="mt-2 text-sm leading-6 text-muted">{what}</p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-5 text-center text-sm text-muted">
+          You will be sent to Google to approve read-only access. While the app is in early access, Google may show an
+          &ldquo;unverified app&rdquo; notice: choose Advanced to continue. Need more detail?{" "}
+          <Link href="/setup" className="text-accent underline underline-offset-4">
+            Read the setup guide
+          </Link>
+          .
         </p>
       </section>
 
-      <section aria-labelledby="control" className="space-y-2">
-        <h2 id="control" className="text-xl font-semibold">
+      <section aria-labelledby="control" className="mt-14">
+        <h2 id="control" className="text-center text-2xl font-bold tracking-tight">
           You stay in control
         </h2>
-        <p>
-          You can disconnect Google and delete your data any time from your <a className="underline" href="/account">account page</a>.
-          See the <a className="underline" href="/privacy">privacy policy</a> for exactly what is stored.
+        <ul className="mt-6 grid gap-4 sm:grid-cols-2">
+          {trust.map(([title, text]) => (
+            <li key={title} className="card flex gap-3">
+              <Check />
+              <div>
+                <h3 className="font-semibold">{title}</h3>
+                <p className="mt-1 text-sm leading-6 text-muted">{text}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-5 text-center text-sm text-muted">
+          See the{" "}
+          <Link href="/privacy" className="text-accent underline underline-offset-4">
+            privacy policy
+          </Link>{" "}
+          for exactly what is stored, or manage your connection on your{" "}
+          <Link href="/account" className="text-accent underline underline-offset-4">
+            account page
+          </Link>
+          .
         </p>
       </section>
     </SiteShell>
